@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  USER
+  ADMIN
+  VOLUNTEER
+}
+
+enum BookingStatus {
+  ACTIVE
+  CANCELLED
+  DELIVERED
+}
+
+enum BookingType {
+  ONE_TIME
+  RECURRING
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  phone          String   @unique
+  alternatePhone String?
+  address        String
+  landmark  String?
+  area      String
+  pin       String
+  role      Role     @default(USER)
+  verified  Boolean  @default(false)
+  blocked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookings  Booking[]
+  volunteer Volunteer?
+}
+
+model Booking {
+  id          String        @id @default(cuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  tiffinCount Int
+  startDate   DateTime
+  endDate     DateTime
+  type        BookingType   @default(ONE_TIME)
+  status      BookingStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  deliveries    Delivery[]
+  modifications BookingModification[]
+}
+
+model Volunteer {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id])
+  areas      String[]
+  available  Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  deliveries Delivery[]
+}
+
+model Delivery {
+  id          String        @id @default(cuid())
+  bookingId   String
+  booking     Booking       @relation(fields: [bookingId], references: [id])
+  volunteerId String?
+  volunteer   Volunteer?    @relation(fields: [volunteerId], references: [id])
+  status      BookingStatus @default(ACTIVE)
+  deliveredAt DateTime  @default(now())
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model Area {
+  id     String @id @default(cuid())
+  name   String @unique
+  count  Int    @default(0) // Total tiffins for this area
+}
+
+// Tracks individual day modifications (cancellations, tiffin count changes)
+model BookingModification {
+  id          String   @id @default(cuid())
+  bookingId   String
+  booking     Booking  @relation(fields: [bookingId], references: [id])
+  date        DateTime // The specific date being modified
+  tiffinCount Int?     // New tiffin count for this date (null = use booking default)
+  cancelled   Boolean  @default(false) // If true, no delivery on this date
+  reason      String?  // Optional reason for modification
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([bookingId, date], name: "bookingId_date")
+}
+// Global configuration for the application
+model GlobalConfig {
+  id                String   @id @default("singleton")
+  ramadanStarted    Boolean  @default(false)
+  ramadanEnded      Boolean  @default(false)
+  officialStartDate DateTime?
+  updatedAt         DateTime @updatedAt
+}
