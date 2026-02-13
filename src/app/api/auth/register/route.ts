@@ -21,11 +21,17 @@ export async function POST(req: Request) {
         const { name, phone, alternatePhone, address, landmark, area, tiffinCount, pin, bookingType, startDate, endDate } = validation.data;
 
         // Determine booking dates
+        const config = await db.globalConfig.findUnique({
+            where: { id: "singleton" }
+        });
+
+        const EFFECTIVE_START_DATE = config?.officialStartDate || new Date(RAMADAN_START_DATE);
+
         let bookingStartDate: Date;
         let bookingEndDate: Date;
 
         if (bookingType === "FULL_RAMADAN") {
-            bookingStartDate = new Date(RAMADAN_START_DATE);
+            bookingStartDate = new Date(EFFECTIVE_START_DATE);
             bookingEndDate = new Date(RAMADAN_END_DATE);
         } else {
             bookingStartDate = new Date(startDate!);
@@ -90,7 +96,7 @@ export async function POST(req: Request) {
             message: "Registration and booking successful"
         });
 
-        // Set HttpOnly cookie for middleware and better security
+        // Set HttpOnly cookie for proxy and better security
         response.cookies.set("token", token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",

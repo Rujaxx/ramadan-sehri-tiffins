@@ -33,6 +33,8 @@ import {
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 
+import { UserManagement } from "@/components/admin/user-management";
+
 interface Stats {
     totalTiffins: number;
     activeUsers: number;
@@ -76,7 +78,7 @@ interface RamadanConfig {
     officialStartDate: string | null;
 }
 
-type TabType = "bookings" | "volunteers" | "overview" | "analytics";
+type TabType = "bookings" | "volunteers" | "overview" | "analytics" | "users";
 
 export default function AdminPage() {
     const { user: authUser, token, logout, isLoading: authLoading } = useAuth();
@@ -102,7 +104,7 @@ export default function AdminPage() {
 
     const fetchConfig = async () => {
         try {
-            const res = await fetch("/api/admin/config");
+            const res = await fetch("/api/config");
             if (res.ok) {
                 setConfig(await res.json());
             }
@@ -251,6 +253,12 @@ export default function AdminPage() {
                             label="Bookings"
                         />
                         <TabButton
+                            active={activeTab === "analytics"}
+                            onClick={() => setActiveTab("analytics")}
+                            icon={<TrendingUp className="h-4 w-4" />}
+                            label="Analytics"
+                        />
+                        <TabButton
                             active={activeTab === "volunteers"}
                             onClick={() => setActiveTab("volunteers")}
                             icon={<Users className="h-4 w-4" />}
@@ -263,10 +271,10 @@ export default function AdminPage() {
                             label="Overview"
                         />
                         <TabButton
-                            active={activeTab === "analytics"}
-                            onClick={() => setActiveTab("analytics")}
-                            icon={<TrendingUp className="h-4 w-4" />}
-                            label="Analytics"
+                            active={activeTab === "users"}
+                            onClick={() => setActiveTab("users")}
+                            icon={<Users className="h-4 w-4" />}
+                            label="Users"
                         />
                     </div>
                 </div>
@@ -299,6 +307,10 @@ export default function AdminPage() {
 
                 {activeTab === "analytics" && (
                     <AnalyticsPanel />
+                )}
+
+                {activeTab === "users" && (
+                    <UserManagement />
                 )}
             </main>
         </div>
@@ -412,7 +424,10 @@ function RamadanControl({
                     action === "start" ? "Ramadan started!" :
                         action === "end" ? "Ramadan ended" : "Start date updated"
                 );
-                onUpdate();
+                // Refresh the whole app to ensure all components and date logic across the app sync with the new config
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
             } else {
                 toast.error("Failed to update config");
             }

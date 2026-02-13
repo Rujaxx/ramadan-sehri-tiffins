@@ -477,6 +477,12 @@ function AddBookingModal({
             return;
         }
 
+        if (form.alternatePhone && !/^\d{10}$/.test(form.alternatePhone)) {
+            toast.error("Alternate phone must be exactly 10 digits");
+            return;
+        }
+
+
         setIsSubmitting(true);
         try {
             const res = await fetch("/api/admin/bookings", {

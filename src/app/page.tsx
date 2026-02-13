@@ -1,8 +1,32 @@
 import { RegistrationForm } from "@/components/user/registration-form";
 import { Moon, Star } from "lucide-react";
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { jwtVerify } from "jose";
 
-export default function Home() {
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || "your-secret-key");
+
+export default async function Home() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("token")?.value;
+
+  let redirectPath: string | null = null;
+  if (token) {
+    try {
+      const { payload } = await jwtVerify(token, JWT_SECRET);
+      if (payload.role === "ADMIN") redirectPath = "/admin";
+      else if (payload.role === "VOLUNTEER") redirectPath = "/volunteer";
+      else redirectPath = "/dashboard";
+    } catch (e) {
+      // Invalid token, stay on home
+    }
+  }
+
+  if (redirectPath) {
+    redirect(redirectPath);
+  }
+
   return (
     <main className="min-h-screen pt-12 pb-24 px-4 relative overflow-hidden">
       {/* Decorative Elements */}

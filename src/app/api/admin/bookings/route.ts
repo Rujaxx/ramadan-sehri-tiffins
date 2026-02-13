@@ -3,6 +3,8 @@ import { authorizeUser } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { DateTime } from "luxon";
 import { calculateEffectiveTiffins } from "@/lib/booking_utils";
+import { phoneSchema, alternatePhoneSchema } from "@/lib/validations";
+
 
 /**
  * GET: List all bookings for the current delivery window
@@ -178,6 +180,21 @@ export async function POST(req: Request) {
         if (!phone || !name || !address || !area || !tiffinCount) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
+
+        // Validate phone
+        const phoneValidation = phoneSchema.safeParse(phone);
+        if (!phoneValidation.success) {
+            return NextResponse.json({ error: phoneValidation.error.issues[0].message }, { status: 400 });
+        }
+
+        // Validate alternate phone
+        if (alternatePhone) {
+            const altPhoneValidation = alternatePhoneSchema.safeParse(alternatePhone);
+            if (!altPhoneValidation.success) {
+                return NextResponse.json({ error: altPhoneValidation.error.issues[0].message }, { status: 400 });
+            }
+        }
+
 
         // Check if user exists
         let user = await db.user.findUnique({ where: { phone } });

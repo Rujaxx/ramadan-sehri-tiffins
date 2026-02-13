@@ -67,7 +67,7 @@ export default function UserDashboard() {
         try {
             const [bookingRes, configRes] = await Promise.all([
                 fetch("/api/user/booking"),
-                fetch("/api/admin/config")
+                fetch("/api/config")
             ]);
 
             if (bookingRes.ok) {

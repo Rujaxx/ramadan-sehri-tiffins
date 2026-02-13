@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "@/lib/auth";
+import { phoneSchema } from "@/lib/validations";
 
 export async function POST(req: Request) {
     try {
@@ -12,6 +13,13 @@ export async function POST(req: Request) {
         if (!phone || !pin) {
             return NextResponse.json({ error: "Phone and PIN required" }, { status: 400 });
         }
+
+        // Validate phone format
+        const phoneValidation = phoneSchema.safeParse(phone);
+        if (!phoneValidation.success) {
+            return NextResponse.json({ error: phoneValidation.error.issues[0].message }, { status: 400 });
+        }
+
 
         const user = await db.user.findUnique({
             where: { phone },
@@ -49,7 +57,7 @@ export async function POST(req: Request) {
             }
         });
 
-        // Set HttpOnly cookie for middleware and better security
+        // Set HttpOnly cookie for proxy and better security
         response.cookies.set("token", token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
