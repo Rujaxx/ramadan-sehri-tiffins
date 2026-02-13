@@ -1,9 +1,18 @@
 import * as z from "zod";
 
+export const phoneSchema = z.string()
+    .length(10, "Phone number must be exactly 10 digits")
+    .regex(/^\d{10}$/, "Phone number must contain only 10 digits");
+
+export const alternatePhoneSchema = z.string()
+    .regex(/^\d{10}$/, "Must be exactly 10 digits")
+    .optional()
+    .or(z.literal(""));
+
 export const registrationSchema = z.object({
     name: z.string().min(2, "Name is required"),
-    phone: z.string().min(10, "Valid phone number required").regex(/^\d+$/, "Only digits allowed"),
-    alternatePhone: z.string().regex(/^\d{10}$/, "Must be 10 digits").optional().or(z.literal("")),
+    phone: phoneSchema,
+    alternatePhone: alternatePhoneSchema,
     area: z.string().min(1, "Select your area"),
     address: z.string().min(10, "Full address required"),
     landmark: z.string().optional(),
@@ -23,3 +32,4 @@ export const registrationSchema = z.object({
 });
 
 export type RegistrationInput = z.infer<typeof registrationSchema>;
+

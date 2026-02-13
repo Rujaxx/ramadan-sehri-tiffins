@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sehri Tiffin Service",
-  description: "Get your Ramadan Sehri sorted in under 60 seconds.",
+  title: "Apna Naka Free Sehri Tiffin Service",
+  description: "Get your Free Ramadan Sehri tiffin sorted in under 60 seconds with Apna Naka.",
 };
 
 import { AuthProvider } from "@/context/auth-context";

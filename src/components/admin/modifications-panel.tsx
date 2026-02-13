@@ -13,6 +13,8 @@ import {
     Phone,
     Clock
 } from "lucide-react";
+import { toast } from "sonner";
+import { useAuth } from "@/context/auth-context";
 
 interface Modification {
     id: string;

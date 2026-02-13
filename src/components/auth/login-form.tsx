@@ -12,10 +12,13 @@ import { PinInput } from "@/components/shared/pin-input";
 import { useAuth } from "@/context/auth-context";
 import { Phone, Lock, Loader2 } from "lucide-react";
 
+import { phoneSchema } from "@/lib/validations";
+
 const loginSchema = z.object({
-    phone: z.string().min(10, "Valid phone number required").regex(/^\d+$/, "Only digits allowed"),
+    phone: phoneSchema,
     pin: z.string().length(4, "PIN must be 4 digits"),
 });
+
 
 export function LoginForm() {
     const { login } = useAuth();
@@ -66,8 +69,17 @@ export function LoginForm() {
                                 <FormItem>
                                     <FormLabel className="flex items-center gap-2"><Phone className="h-4 w-4" /> Phone Number</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="9876543210" {...field} className="h-12 bg-muted/50 rounded-xl" />
+                                        <Input
+                                            placeholder="9876543210"
+                                            {...field}
+                                            onChange={(e) => {
+                                                const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                                                field.onChange(val);
+                                            }}
+                                            className="h-12 bg-muted/50 rounded-xl"
+                                        />
                                     </FormControl>
+
                                     <FormMessage />
                                 </FormItem>
                             )}

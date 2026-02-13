@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { authorizeUser } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { getDeliveryWindow } from "@/lib/delivery";
+import { calculateEffectiveTiffins } from "@/lib/booking_utils";
 
 export async function GET(req: Request) {
     try {
@@ -27,12 +28,12 @@ export async function GET(req: Request) {
             where: { role: "USER", verified: false },
             include: {
                 bookings: {
-                    where: { status: "ACTIVE" },
+                    orderBy: { createdAt: "desc" },
                     take: 1
                 }
             },
             orderBy: { createdAt: "desc" },
-            take: 5
+            take: 50
         });
 
         const volunteerCount = await db.volunteer.count();
@@ -70,8 +71,22 @@ export async function GET(req: Request) {
                     bookings: {
                         where: {
                             status: "ACTIVE",
-                            startDate: { lte: windowEndJS },
-                            endDate: { gte: windowStartJS }
+                            OR: [
+                                {
+                                    startDate: { lte: windowEndJS },
+                                    endDate: { gte: windowStartJS }
+                                },
+                                {
+                                    modifications: {
+                                        some: {
+                                            date: {
+                                                gte: targetDate.startOf("day").toJSDate(),
+                                                lt: targetDate.plus({ days: 1 }).startOf("day").toJSDate()
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
                         },
                         include: {
                             modifications: {
@@ -93,15 +108,13 @@ export async function GET(req: Request) {
             areaUsers.forEach(user => {
                 user.bookings.forEach(booking => {
                     const mod = booking.modifications[0];
-                    if (mod) {
-                        if (mod.cancelled) {
-                            areaCancellations++;
-                        } else {
-                            areaTiffins += mod.tiffinCount ?? booking.tiffinCount;
-                        }
-                    } else {
-                        areaTiffins += booking.tiffinCount;
+                    const count = calculateEffectiveTiffins(booking, mod, targetDate);
+
+                    if (mod?.cancelled) {
+                        areaCancellations++;
                     }
+
+                    areaTiffins += count;
                 });
             });
 
@@ -138,8 +151,14 @@ export async function GET(req: Request) {
                     id: u.id,
                     name: u.name,
                     phone: u.phone,
+                    alternatePhone: u.alternatePhone,
                     area: u.area,
-                    tiffinCount: u.bookings[0]?.tiffinCount || 0
+                    address: u.address,
+                    landmark: u.landmark,
+                    tiffinCount: u.bookings[0]?.tiffinCount || 0,
+                    bookingType: u.bookings[0]?.type || 'N/A',
+                    startDate: u.bookings[0]?.startDate,
+                    endDate: u.bookings[0]?.endDate,
                 }))
             },
             areaBreakdown

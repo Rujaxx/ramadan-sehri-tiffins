@@ -17,6 +17,7 @@ import {
     Loader2
 } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/context/auth-context";
 
 interface BookingModification {
     id: string;
@@ -82,6 +83,7 @@ export function BookingCalendar({
     onUpdate,
     isRecurring = true
 }: BookingCalendarProps) {
+    const { token } = useAuth();
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [pendingTiffinCount, setPendingTiffinCount] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(false);

@@ -1,8 +1,32 @@
 import { RegistrationForm } from "@/components/user/registration-form";
 import { Moon, Star } from "lucide-react";
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { jwtVerify } from "jose";
 
-export default function Home() {
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || "your-secret-key");
+
+export default async function Home() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("token")?.value;
+
+  let redirectPath: string | null = null;
+  if (token) {
+    try {
+      const { payload } = await jwtVerify(token, JWT_SECRET);
+      if (payload.role === "ADMIN") redirectPath = "/admin";
+      else if (payload.role === "VOLUNTEER") redirectPath = "/volunteer";
+      else redirectPath = "/dashboard";
+    } catch (e) {
+      // Invalid token, stay on home
+    }
+  }
+
+  if (redirectPath) {
+    redirect(redirectPath);
+  }
+
   return (
     <main className="min-h-screen pt-12 pb-24 px-4 relative overflow-hidden">
       {/* Decorative Elements */}
@@ -20,7 +44,7 @@ export default function Home() {
             </Link>
           </div>
           <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-tight">
-            Sehri <span className="gradient-text">By Apna Naka Group.</span>
+            Apna Naka <span className="gradient-text">Free Sehri Service.</span>
           </h1>
           {/* <p className="max-w-lg mx-auto text-muted-foreground text-lg md:text-xl font-medium">
             Book your daily tiffin in under 60 seconds. Fresh, hot, and delivered to your doorstep.
@@ -50,8 +74,11 @@ export default function Home() {
         </div>
       </div>
 
-      <footer className="mt-24 text-center text-muted-foreground text-sm font-medium">
-        © 2026 Sehri Tiffin Service • Built with Barkat for the Community
+      <footer className="mt-24 text-center text-muted-foreground text-sm font-medium pb-8 border-t border-border/50 pt-8">
+        <div className="space-y-2">
+          <p>© 2026 Apna Naka Free Sehri Tiffin Service • Built with Barkat for the Community</p>
+          <p className="text-emerald-400 font-bold">Contact us: 9503206769</p>
+        </div>
       </footer>
     </main>
   );

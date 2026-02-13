@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { authorizeUser } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { phoneSchema } from "@/lib/validations";
 
 /**
  * GET: List all volunteers with their details and assigned areas
@@ -83,6 +84,13 @@ export async function POST(req: Request) {
         if (!phone) {
             return NextResponse.json({ error: "Phone number required" }, { status: 400 });
         }
+
+        // Validate phone
+        const phoneValidation = phoneSchema.safeParse(phone);
+        if (!phoneValidation.success) {
+            return NextResponse.json({ error: phoneValidation.error.issues[0].message }, { status: 400 });
+        }
+
 
         // Check if user exists
         let user = await db.user.findUnique({ where: { phone } });

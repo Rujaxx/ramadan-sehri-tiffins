@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -24,8 +24,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 
 // Format date string (YYYY-MM-DD) to display format (e.g. "Feb 18, 2026")
-function formatDateDisplay(dateStr: string): string {
-    const date = new Date(dateStr + "T00:00:00");
+function formatDateDisplay(dateInput: string | Date): string {
+    const date = typeof dateInput === "string" ? new Date(dateInput + "T00:00:00") : dateInput;
     return date.toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
@@ -34,9 +34,9 @@ function formatDateDisplay(dateStr: string): string {
 }
 
 // Calculate number of days between two date strings
-function getDaysBetween(startStr: string, endStr: string): number {
-    const start = new Date(startStr + "T00:00:00");
-    const end = new Date(endStr + "T00:00:00");
+function getDaysBetween(startInput: string | Date, endInput: string | Date): number {
+    const start = typeof startInput === "string" ? new Date(startInput + "T00:00:00") : startInput;
+    const end = typeof endInput === "string" ? new Date(endInput + "T00:00:00") : endInput;
     return Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 }
 
@@ -74,8 +74,33 @@ function StepIndicator({ currentStep, totalSteps }: { currentStep: number; total
 export function RegistrationForm() {
     const [step, setStep] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
+    const [ramadanDates, setRamadanDates] = useState({
+        start: new Date(RAMADAN_START_DATE + "T00:00:00"),
+        end: new Date(RAMADAN_END_DATE + "T00:00:00"),
+    });
     const router = useRouter();
     const { login } = useAuth();
+
+    // Fetch dynamic start date from global config
+    useEffect(() => {
+        const fetchConfig = async () => {
+            try {
+                const res = await fetch("/api/config");
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.officialStartDate) {
+                        setRamadanDates(prev => ({
+                            ...prev,
+                            start: new Date(data.officialStartDate)
+                        }));
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to fetch global config:", error);
+            }
+        };
+        fetchConfig();
+    }, []);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -168,8 +193,8 @@ export function RegistrationForm() {
     return (
         <Card className="premium-card w-full max-w-md mx-auto">
             <CardHeader>
-                <CardTitle className="text-3xl font-bold gradient-text">Book Sehri Tiffin</CardTitle>
-                <CardDescription>Get your Ramadan Sehri sorted in under a minute.</CardDescription>
+                <CardTitle className="text-3xl font-bold gradient-text">Apna Naka Free Sehri Tiffin</CardTitle>
+                <CardDescription>Get your Free Ramadan Sehri sorted in under a minute with Apna Naka.</CardDescription>
             </CardHeader>
             <CardContent>
                 <StepIndicator currentStep={step} totalSteps={TOTAL_STEPS} />
@@ -206,7 +231,15 @@ export function RegistrationForm() {
                                                 <Phone className="h-4 w-4" /> Phone Number
                                             </FormLabel>
                                             <FormControl>
-                                                <Input placeholder="9876543210" {...field} className="h-12 bg-muted/50 rounded-xl" />
+                                                <Input
+                                                    placeholder="9876543210"
+                                                    {...field}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                                                        field.onChange(val);
+                                                    }}
+                                                    className="h-12 bg-muted/50 rounded-xl"
+                                                />
                                             </FormControl>
                                             <FormDescription className="text-xs">
                                                 WhatsApp number preferred for delivery updates
@@ -224,7 +257,15 @@ export function RegistrationForm() {
                                                 <Phone className="h-4 w-4" /> Alternate Phone
                                             </FormLabel>
                                             <FormControl>
-                                                <Input placeholder="Optional alternate number" {...field} className="h-12 bg-muted/50 rounded-xl" />
+                                                <Input
+                                                    placeholder="Optional alternate number"
+                                                    {...field}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                                                        field.onChange(val);
+                                                    }}
+                                                    className="h-12 bg-muted/50 rounded-xl"
+                                                />
                                             </FormControl>
                                             <FormDescription className="text-xs">
                                                 Backup contact number (optional)
@@ -367,7 +408,7 @@ export function RegistrationForm() {
                                                         <div className="flex-1">
                                                             <div className="font-semibold">Full Ramadan</div>
                                                             <div className="text-sm text-muted-foreground">
-                                                                {formatDateDisplay(RAMADAN_START_DATE)} - {formatDateDisplay(RAMADAN_END_DATE)} ({getDaysBetween(RAMADAN_START_DATE, RAMADAN_END_DATE)} days)
+                                                                {formatDateDisplay(ramadanDates.start)} - {formatDateDisplay(ramadanDates.end)} ({getDaysBetween(ramadanDates.start, ramadanDates.end)} days)
                                                             </div>
                                                         </div>
                                                         {field.value === "FULL_RAMADAN" && (
@@ -450,8 +491,8 @@ export function RegistrationForm() {
                                                                     }
                                                                 }}
                                                                 disabled={(date) =>
-                                                                    date < new Date(RAMADAN_START_DATE + "T00:00:00") ||
-                                                                    date > new Date(RAMADAN_END_DATE + "T00:00:00") ||
+                                                                    date < ramadanDates.start ||
+                                                                    date > ramadanDates.end ||
                                                                     (!!form.watch("endDate") && date > new Date(form.watch("endDate") + "T00:00:00"))
                                                                 }
                                                                 initialFocus
@@ -501,8 +542,8 @@ export function RegistrationForm() {
                                                                     }
                                                                 }}
                                                                 disabled={(date) =>
-                                                                    date < new Date(RAMADAN_START_DATE + "T00:00:00") ||
-                                                                    date > new Date(RAMADAN_END_DATE + "T00:00:00") ||
+                                                                    date < ramadanDates.start ||
+                                                                    date > ramadanDates.end ||
                                                                     (!!form.watch("startDate") && date < new Date(form.watch("startDate") + "T00:00:00"))
                                                                 }
                                                                 initialFocus

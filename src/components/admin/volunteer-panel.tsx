@@ -60,9 +60,7 @@ export function VolunteerPanel() {
             if (!isInitial && nextCursor) params.append("cursor", nextCursor);
             params.append("limit", "20");
 
-            const res = await fetch(`/api/admin/volunteers?${params}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await fetch(`/api/admin/volunteers?${params}`);
 
             if (res.ok) {
                 const data = await res.json();
@@ -93,8 +91,7 @@ export function VolunteerPanel() {
             const res = await fetch("/api/admin/volunteers", {
                 method: "PATCH",
                 headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
                     volunteerId,
@@ -116,9 +113,8 @@ export function VolunteerPanel() {
         if (!confirm(`Remove ${volunteerName} from volunteers?`)) return;
 
         try {
-            const res = await fetch(`/api/admin/volunteers?id=${volunteerId}`, {
-                method: "DELETE",
-                headers: { Authorization: `Bearer ${token}` }
+            const res = await fetch(`/api/admin/volunteers?volunteerId=${volunteerId}`, {
+                method: "DELETE"
             });
 
             if (res.ok) {
@@ -180,7 +176,6 @@ export function VolunteerPanel() {
                                     onToggleAvailability={() => handleToggleAvailability(volunteer.id, volunteer.available)}
                                     onEdit={() => setEditingVolunteer(volunteer)}
                                     onDelete={() => handleDelete(volunteer.id, volunteer.name)}
-                                    token={token}
                                     onRefresh={refreshData}
                                 />
                             ))}
@@ -204,7 +199,6 @@ export function VolunteerPanel() {
                                     onToggleAvailability={() => handleToggleAvailability(volunteer.id, volunteer.available)}
                                     onEdit={() => setEditingVolunteer(volunteer)}
                                     onDelete={() => handleDelete(volunteer.id, volunteer.name)}
-                                    token={token}
                                     onRefresh={refreshData}
                                 />
                             ))}
@@ -237,7 +231,6 @@ export function VolunteerPanel() {
             {showAddModal && (
                 <AddVolunteerModal
                     areas={availableAreas}
-                    token={token}
                     onClose={() => setShowAddModal(false)}
                     onSuccess={() => {
                         setShowAddModal(false);
@@ -258,7 +251,6 @@ function VolunteerCard({
     onToggleAvailability,
     onEdit,
     onDelete,
-    token,
     onRefresh
 }: {
     volunteer: VolunteerData;
@@ -268,7 +260,6 @@ function VolunteerCard({
     onToggleAvailability: () => void;
     onEdit: () => void;
     onDelete: () => void;
-    token: string | null;
     onRefresh: () => void;
 }) {
     const [isUpdating, setIsUpdating] = useState(false);
@@ -279,8 +270,7 @@ function VolunteerCard({
             const res = await fetch("/api/admin/volunteers", {
                 method: "PATCH",
                 headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
                     volunteerId: volunteer.id,
@@ -428,12 +418,10 @@ function CopyButton({ value }: { value: string }) {
 // Add Volunteer Modal
 function AddVolunteerModal({
     areas,
-    token,
     onClose,
     onSuccess
 }: {
     areas: string[];
-    token: string | null;
     onClose: () => void;
     onSuccess: () => void;
 }) {
@@ -458,8 +446,7 @@ function AddVolunteerModal({
             const res = await fetch("/api/admin/volunteers", {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify({ phone, name: name || undefined, areas: selectedAreas })
             });
@@ -509,8 +496,8 @@ function AddVolunteerModal({
                             type="tel"
                             value={phone}
                             onChange={(e) => {
-                                const val = e.target.value.replace(/\D/g, "");
-                                if (val.length <= 10) setPhone(val);
+                                const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                                setPhone(val);
                             }}
                             maxLength={10}
                             placeholder="10-digit phone number"

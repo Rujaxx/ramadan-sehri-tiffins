@@ -1,6 +1,8 @@
 import { db } from "@/lib/db";
 import { authorizeUser } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
+import { phoneSchema, alternatePhoneSchema } from "@/lib/validations";
 
 export async function GET(req: Request) {
     try {
@@ -43,25 +45,64 @@ export async function PATCH(req: Request) {
         }
 
         const body = await req.json();
-        const { userId, blocked, verified, tiffinCount } = body;
+        const {
+            userId,
+            blocked,
+            verified,
+            tiffinCount,
+            name,
+            phone,
+            alternatePhone,
+            address,
+            landmark,
+            area,
+            pin
+        } = body;
 
         if (!userId) {
             return NextResponse.json({ error: "User ID is required" }, { status: 400 });
         }
 
-        // Update block status if provided
-        if (blocked !== undefined) {
-            await db.user.update({
-                where: { id: userId },
-                data: { blocked }
-            });
+        // Validate phone if provided
+        if (phone) {
+            const phoneValidation = phoneSchema.safeParse(phone);
+            if (!phoneValidation.success) {
+                return NextResponse.json({ error: phoneValidation.error.issues[0].message }, { status: 400 });
+            }
         }
 
-        // Update verification status if provided
-        if (verified !== undefined) {
+        // Validate alternate phone if provided
+        if (alternatePhone) {
+            const altPhoneValidation = alternatePhoneSchema.safeParse(alternatePhone);
+            if (!altPhoneValidation.success) {
+                return NextResponse.json({ error: altPhoneValidation.error.issues[0].message }, { status: 400 });
+            }
+        }
+
+
+        const updateData: any = {};
+        if (blocked !== undefined) updateData.blocked = blocked;
+        if (verified !== undefined) updateData.verified = verified;
+        if (name !== undefined) updateData.name = name;
+        if (phone !== undefined) updateData.phone = phone;
+        if (alternatePhone !== undefined) updateData.alternatePhone = alternatePhone;
+        if (address !== undefined) updateData.address = address;
+        if (landmark !== undefined) updateData.landmark = landmark;
+        if (area !== undefined) updateData.area = area;
+
+        // Only update PIN if it's a non-empty string
+        if (pin && typeof pin === "string" && pin.trim().length > 0) {
+            // Validate PIN format (4 digits numeric)
+            if (!/^\d{4}$/.test(pin)) {
+                return NextResponse.json({ error: "PIN must be exactly 4 digits" }, { status: 400 });
+            }
+            updateData.pin = await bcrypt.hash(pin, 10);
+        }
+
+        if (Object.keys(updateData).length > 0) {
             await db.user.update({
                 where: { id: userId },
-                data: { verified }
+                data: updateData
             });
         }
 

@@ -63,9 +63,7 @@ export function VolunteerDeliveryPanel() {
             if (!isInitial && nextCursor) params.append("cursor", nextCursor);
             params.append("limit", "20");
 
-            const res = await fetch(`/api/volunteer/deliveries?${params}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await fetch(`/api/volunteer/deliveries?${params}`);
 
             if (res.ok) {
                 const data = await res.json();
@@ -104,8 +102,7 @@ export function VolunteerDeliveryPanel() {
             const res = await fetch("/api/volunteer/deliveries", {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify({ bookingId })
             });
@@ -136,8 +133,7 @@ export function VolunteerDeliveryPanel() {
 
         try {
             const res = await fetch(`/api/volunteer/deliveries?bookingId=${bookingId}`, {
-                method: "DELETE",
-                headers: { Authorization: `Bearer ${token}` }
+                method: "DELETE"
             });
 
             if (!res.ok) {
