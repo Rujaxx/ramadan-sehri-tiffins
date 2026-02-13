@@ -20,7 +20,6 @@ import {
     RefreshCw,
     Moon,
     Power,
-    CalendarDays,
     TrendingUp,
     LogOut,
     ShieldAlert,
@@ -29,6 +28,7 @@ import {
     Minus,
     Plus,
     ShieldCheck,
+    Truck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -240,7 +240,7 @@ export default function AdminPage() {
                         <QuickStat
                             label="Volunteers"
                             value={stats?.volunteerCount || 0}
-                            icon={<Utensils className="h-3 w-3" />}
+                            icon={<Truck className="h-3 w-3" />}
                         />
                     </div>
 
@@ -253,28 +253,28 @@ export default function AdminPage() {
                             label="Bookings"
                         />
                         <TabButton
+                            active={activeTab === "users"}
+                            onClick={() => setActiveTab("users")}
+                            icon={<Users className="h-4 w-4" />}
+                            label="Users"
+                        />
+                        <TabButton
+                            active={activeTab === "volunteers"}
+                            onClick={() => setActiveTab("volunteers")}
+                            icon={<Truck className="h-4 w-4" />}
+                            label="Volunteers"
+                        />
+                        <TabButton
                             active={activeTab === "analytics"}
                             onClick={() => setActiveTab("analytics")}
                             icon={<TrendingUp className="h-4 w-4" />}
                             label="Analytics"
                         />
                         <TabButton
-                            active={activeTab === "volunteers"}
-                            onClick={() => setActiveTab("volunteers")}
-                            icon={<Users className="h-4 w-4" />}
-                            label="Volunteers"
-                        />
-                        <TabButton
                             active={activeTab === "overview"}
                             onClick={() => setActiveTab("overview")}
                             icon={<BarChart3 className="h-4 w-4" />}
                             label="Overview"
-                        />
-                        <TabButton
-                            active={activeTab === "users"}
-                            onClick={() => setActiveTab("users")}
-                            icon={<Users className="h-4 w-4" />}
-                            label="Users"
                         />
                     </div>
                 </div>

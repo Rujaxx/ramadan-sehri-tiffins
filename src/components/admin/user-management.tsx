@@ -13,7 +13,9 @@ import {
     Phone,
     MapPin,
     Check,
-    X
+    X,
+    ChevronDown,
+    Copy
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
@@ -26,6 +28,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { RAMADAN_AREAS } from "@/lib/constants";
 
 interface User {
     id: string;
@@ -130,9 +133,24 @@ export function UserManagement({ defaultFilter }: { defaultFilter?: boolean | nu
 
     const handleUpdateUser = async () => {
         if (!editingUser) return;
+
+        // Mandatory validations
+        if (!editForm.name?.trim()) {
+            toast.error("Full name is mandatory");
+            return;
+        }
+        if (!editForm.phone?.trim()) {
+            toast.error("Phone number is mandatory");
+            return;
+        }
+        if (!editForm.address?.trim()) {
+            toast.error("Address is mandatory");
+            return;
+        }
+
         setIsUpdating(true);
 
-        // Validate phone
+        // Validate phone length and pattern
         if (editForm.phone && (editForm.phone.length !== 10 || !/^\d{10}$/.test(editForm.phone))) {
             toast.error("Phone number must be exactly 10 digits");
             setIsUpdating(false);
@@ -267,11 +285,23 @@ export function UserManagement({ defaultFilter }: { defaultFilter?: boolean | nu
                                                 <TableCell className="py-4 sm:py-5">
                                                     <div className="flex flex-col">
                                                         <span className="font-black text-white text-sm sm:text-base line-clamp-1">{user.name}</span>
-                                                        <div className="flex flex-col gap-0.5 mt-1">
-                                                            <a href={`tel:${user.phone}`} className="text-[11px] sm:text-xs text-emerald-400 font-black flex items-center gap-1 hover:underline">
-                                                                <Phone className="h-3 w-3" />
-                                                                {user.phone}
-                                                            </a>
+                                                        <div className="flex flex-col gap-1 mt-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <a href={`tel:${user.phone}`} className="text-[11px] sm:text-xs text-emerald-400 font-black flex items-center gap-1 hover:underline">
+                                                                    <Phone className="h-3 w-3" />
+                                                                    {user.phone}
+                                                                </a>
+                                                                <CopyButton value={user.phone} />
+                                                            </div>
+                                                            {user.alternatePhone && (
+                                                                <div className="flex items-center gap-2">
+                                                                    <a href={`tel:${user.alternatePhone}`} className="text-[11px] sm:text-xs text-zinc-400 font-bold flex items-center gap-1 hover:underline">
+                                                                        <Phone className="h-3 w-3 opacity-70" />
+                                                                        {user.alternatePhone}
+                                                                    </a>
+                                                                    <CopyButton value={user.alternatePhone} />
+                                                                </div>
+                                                            )}
                                                             <span className="text-[9px] sm:text-[10px] text-zinc-500 font-bold sm:hidden">{user.area}</span>
                                                         </div>
                                                     </div>
@@ -409,7 +439,7 @@ export function UserManagement({ defaultFilter }: { defaultFilter?: boolean | nu
                                 </div>
                                 <div className="grid grid-cols-1 gap-4">
                                     <div className="space-y-1.5">
-                                        <label className="text-[9px] font-bold text-zinc-500 ml-1 uppercase">Name</label>
+                                        <label className="text-[9px] font-bold text-zinc-500 ml-1 uppercase">Name *</label>
                                         <input
                                             type="text"
                                             value={editForm.name || ""}
@@ -419,11 +449,14 @@ export function UserManagement({ defaultFilter }: { defaultFilter?: boolean | nu
                                     </div>
                                     <div className="grid grid-cols-2 gap-3">
                                         <div className="space-y-1.5">
-                                            <label className="text-[9px] font-bold text-zinc-500 ml-1 uppercase">Phone</label>
+                                            <label className="text-[9px] font-bold text-zinc-500 ml-1 uppercase">Phone *</label>
                                             <input
                                                 type="text"
                                                 value={editForm.phone || ""}
-                                                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                                                onChange={(e) => {
+                                                    const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                                                    setEditForm({ ...editForm, phone: val });
+                                                }}
                                                 className="w-full bg-zinc-900/50 border border-zinc-800 focus:border-emerald-500/50 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all font-mono"
                                             />
                                         </div>
@@ -432,19 +465,31 @@ export function UserManagement({ defaultFilter }: { defaultFilter?: boolean | nu
                                             <input
                                                 type="text"
                                                 value={editForm.alternatePhone || ""}
-                                                onChange={(e) => setEditForm({ ...editForm, alternatePhone: e.target.value })}
+                                                onChange={(e) => {
+                                                    const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                                                    setEditForm({ ...editForm, alternatePhone: val });
+                                                }}
                                                 className="w-full bg-zinc-900/50 border border-zinc-800 focus:border-emerald-500/50 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all font-mono"
                                             />
                                         </div>
                                     </div>
                                     <div className="space-y-1.5">
-                                        <label className="text-[9px] font-bold text-zinc-500 ml-1 uppercase">Area</label>
-                                        <input
-                                            type="text"
-                                            value={editForm.area || ""}
-                                            onChange={(e) => setEditForm({ ...editForm, area: e.target.value })}
-                                            className="w-full bg-zinc-900/50 border border-zinc-800 focus:border-emerald-500/50 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all"
-                                        />
+                                        <label className="text-[9px] font-bold text-zinc-500 ml-1 uppercase">Area *</label>
+                                        <div className="relative">
+                                            <select
+                                                value={editForm.area || ""}
+                                                onChange={(e) => setEditForm({ ...editForm, area: e.target.value })}
+                                                className="w-full bg-zinc-900/50 border border-zinc-800 focus:border-emerald-500/50 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all appearance-none"
+                                            >
+                                                <option value="" disabled>Select Area</option>
+                                                {RAMADAN_AREAS.map((area) => (
+                                                    <option key={area} value={area}>{area}</option>
+                                                ))}
+                                            </select>
+                                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
+                                                <ChevronDown className="h-4 w-4" />
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -457,7 +502,7 @@ export function UserManagement({ defaultFilter }: { defaultFilter?: boolean | nu
                                 </div>
                                 <div className="space-y-4">
                                     <div className="space-y-1.5">
-                                        <label className="text-[9px] font-bold text-zinc-500 ml-1 uppercase">Full Address</label>
+                                        <label className="text-[9px] font-bold text-zinc-500 ml-1 uppercase">Full Address *</label>
                                         <textarea
                                             value={editForm.address || ""}
                                             onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
@@ -549,5 +594,27 @@ export function UserManagement({ defaultFilter }: { defaultFilter?: boolean | nu
                 </div>
             )}
         </>
+    );
+}
+
+function CopyButton({ value }: { value: string }) {
+    const [copied, setCopied] = useState(false);
+
+    const handleCopy = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        navigator.clipboard.writeText(value);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    return (
+        <button
+            onClick={handleCopy}
+            className="p-1 hover:bg-white/10 rounded transition-colors text-zinc-600 hover:text-zinc-400"
+            title="Copy to clipboard"
+        >
+            {copied ? <Check className="h-2.5 w-2.5 text-emerald-500" /> : <Copy className="h-2.5 w-2.5" />}
+        </button>
     );
 }

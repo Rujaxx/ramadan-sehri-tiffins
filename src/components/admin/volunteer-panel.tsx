@@ -496,8 +496,8 @@ function AddVolunteerModal({
                             type="tel"
                             value={phone}
                             onChange={(e) => {
-                                const val = e.target.value.replace(/\D/g, "");
-                                if (val.length <= 10) setPhone(val);
+                                const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                                setPhone(val);
                             }}
                             maxLength={10}
                             placeholder="10-digit phone number"

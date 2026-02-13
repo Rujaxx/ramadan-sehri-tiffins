@@ -525,8 +525,8 @@ function AddBookingModal({
                                 type="tel"
                                 value={form.phone}
                                 onChange={(e) => {
-                                    const val = e.target.value.replace(/\D/g, "");
-                                    if (val.length <= 10) setForm({ ...form, phone: val });
+                                    const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                                    setForm({ ...form, phone: val });
                                 }}
                                 maxLength={10}
                                 placeholder="10-digit number"
@@ -540,8 +540,8 @@ function AddBookingModal({
                                 type="tel"
                                 value={form.alternatePhone}
                                 onChange={(e) => {
-                                    const val = e.target.value.replace(/\D/g, "");
-                                    if (val.length <= 10) setForm({ ...form, alternatePhone: val });
+                                    const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                                    setForm({ ...form, alternatePhone: val });
                                 }}
                                 maxLength={10}
                                 placeholder="Optional"
