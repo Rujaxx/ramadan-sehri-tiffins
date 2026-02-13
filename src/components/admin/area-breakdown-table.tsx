@@ -33,7 +33,6 @@ interface AreaBreakdownTableProps {
 }
 
 export function AreaBreakdownTable({ data }: AreaBreakdownTableProps) {
-    const { token } = useAuth();
     const [allVolunteers, setAllVolunteers] = useState<Volunteer[]>([]);
     const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
     const [selectedArea, setSelectedArea] = useState<string | null>(null);
@@ -44,9 +43,7 @@ export function AreaBreakdownTable({ data }: AreaBreakdownTableProps) {
 
     const fetchVolunteers = async () => {
         try {
-            const res = await fetch("/api/admin/volunteers", {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await fetch("/api/admin/volunteers");
             if (res.ok) {
                 const data = await res.json();
                 setAllVolunteers(data.volunteers);
@@ -62,8 +59,7 @@ export function AreaBreakdownTable({ data }: AreaBreakdownTableProps) {
             const res = await fetch("/api/admin/volunteers", {
                 method: "PATCH",
                 headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
                     volunteerId,
@@ -241,8 +237,8 @@ export function AreaBreakdownTable({ data }: AreaBreakdownTableProps) {
                                             disabled={isUpdating}
                                             onClick={() => handleToggleAssignment(v.id, selectedArea, isAssigned)}
                                             className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all ${isAssigned
-                                                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                                                    : "bg-white/5 border-white/5 text-zinc-400 hover:bg-white/10 hover:border-white/20"
+                                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                                                : "bg-white/5 border-white/5 text-zinc-400 hover:bg-white/10 hover:border-white/20"
                                                 }`}
                                         >
                                             <div className="text-left">

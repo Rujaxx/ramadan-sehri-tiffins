@@ -66,9 +66,7 @@ export default function UserDashboard() {
         setIsLoading(true);
         try {
             const [bookingRes, configRes] = await Promise.all([
-                fetch("/api/user/booking", {
-                    headers: { Authorization: `Bearer ${token}` }
-                }),
+                fetch("/api/user/booking"),
                 fetch("/api/admin/config")
             ]);
 
@@ -94,8 +92,7 @@ export default function UserDashboard() {
             const res = await fetch("/api/user/booking", {
                 method: "PATCH",
                 headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
                     type: isRecurring ? "RECURRING" : "ONE_TIME"
@@ -140,7 +137,7 @@ export default function UserDashboard() {
                 <header className="flex justify-between items-center text-left">
                     <div>
                         <h1 className="text-3xl font-black gradient-text">Salaam, {user?.name}</h1>
-                        <p className="text-zinc-500 font-medium text-left">Your Sehri Management</p>
+                        <p className="text-zinc-500 font-medium text-left">Apna Naka Free Sehri Service</p>
                     </div>
                     <div className="flex items-center gap-3">
                         <button
@@ -258,7 +255,7 @@ export default function UserDashboard() {
                             <div className="text-sm text-left">
                                 <p className="font-semibold text-emerald-300 mb-1 text-left">Need Help?</p>
                                 <p className="text-emerald-200/70 text-left">
-                                    Contact us on WhatsApp for any delivery issues or questions about your booking.
+                                    Contact us on WhatsApp at 9503206769 for any delivery issues or questions about your booking.
                                 </p>
                             </div>
                         </div>

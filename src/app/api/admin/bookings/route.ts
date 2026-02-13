@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { authorizeUser } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { DateTime } from "luxon";
+import { calculateEffectiveTiffins } from "@/lib/booking_utils";
 
 /**
  * GET: List all bookings for the current delivery window
@@ -55,8 +56,22 @@ export async function GET(req: Request) {
         // Build where clause
         const whereClause: any = {
             status: status,
-            startDate: { lte: targetDateJS },
-            endDate: { gte: targetDateJS },
+            OR: [
+                {
+                    startDate: { lte: targetDateJS },
+                    endDate: { gte: targetDateJS }
+                },
+                {
+                    modifications: {
+                        some: {
+                            date: {
+                                gte: targetDateJS,
+                                lt: dayAfterJS
+                            }
+                        }
+                    }
+                }
+            ],
             user: {
                 role: "USER",
                 ...(area && { area }),
@@ -107,12 +122,14 @@ export async function GET(req: Request) {
         // Map to include effective tiffin count for today
         const enrichedBookings = bookingsToReturn.map(booking => {
             const mod = booking.modifications[0];
+            const todayTiffinCount = calculateEffectiveTiffins(booking, mod, targetDate);
+
             return {
                 id: booking.id,
                 userId: booking.userId,
                 user: booking.user,
                 baseTiffinCount: booking.tiffinCount,
-                todayTiffinCount: mod?.cancelled ? 0 : (mod?.tiffinCount ?? booking.tiffinCount),
+                todayTiffinCount: todayTiffinCount,
                 isCancelledToday: mod?.cancelled || false,
                 modificationReason: mod?.reason || null,
                 startDate: booking.startDate,

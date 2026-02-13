@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { useAuth } from "@/context/auth-context";
 
 interface User {
     id: string;
@@ -39,7 +40,7 @@ interface User {
     }[];
 }
 
-export function UserManagement({ token, defaultFilter }: { token: string | null, defaultFilter?: boolean | null }) {
+export function UserManagement({ defaultFilter }: { defaultFilter?: boolean | null }) {
     const [query, setQuery] = useState("");
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -57,9 +58,7 @@ export function UserManagement({ token, defaultFilter }: { token: string | null,
     const fetchUsers = async () => {
         setIsLoading(true);
         try {
-            const res = await fetch(`/api/admin/users?query=${query}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await fetch(`/api/admin/users?query=${query}`);
             if (res.ok) {
                 const data = await res.json();
                 setUsers(data.users);
@@ -79,8 +78,7 @@ export function UserManagement({ token, defaultFilter }: { token: string | null,
             const res = await fetch("/api/admin/users", {
                 method: "PATCH",
                 headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify({ userId: user.id, blocked: !user.blocked })
             });
@@ -101,8 +99,7 @@ export function UserManagement({ token, defaultFilter }: { token: string | null,
             const res = await fetch("/api/admin/users", {
                 method: "PATCH",
                 headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify({ userId: user.id, verified: true })
             });
@@ -126,8 +123,7 @@ export function UserManagement({ token, defaultFilter }: { token: string | null,
             const res = await fetch("/api/admin/users", {
                 method: "PATCH",
                 headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify({ userId: editingUser.id, tiffinCount: newTiffinCount })
             });

@@ -168,8 +168,8 @@ export function RegistrationForm() {
     return (
         <Card className="premium-card w-full max-w-md mx-auto">
             <CardHeader>
-                <CardTitle className="text-3xl font-bold gradient-text">Book Sehri Tiffin</CardTitle>
-                <CardDescription>Get your Ramadan Sehri sorted in under a minute.</CardDescription>
+                <CardTitle className="text-3xl font-bold gradient-text">Apna Naka Free Sehri Tiffin</CardTitle>
+                <CardDescription>Get your Free Ramadan Sehri sorted in under a minute with Apna Naka.</CardDescription>
             </CardHeader>
             <CardContent>
                 <StepIndicator currentStep={step} totalSteps={TOTAL_STEPS} />

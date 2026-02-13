@@ -85,9 +85,7 @@ export function BookingsPanel({ deliveryLabel, onStatsUpdate }: BookingsPanelPro
             if (!isInitial && nextCursor) params.append("cursor", nextCursor);
             params.append("limit", "20");
 
-            const res = await fetch(`/api/admin/bookings?${params}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await fetch(`/api/admin/bookings?${params}`);
 
             if (res.ok) {
                 const data = await res.json();
@@ -120,8 +118,7 @@ export function BookingsPanel({ deliveryLabel, onStatsUpdate }: BookingsPanelPro
             const res = await fetch("/api/admin/bookings", {
                 method: "PATCH",
                 headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify({ bookingId, action, ...data })
             });
@@ -266,7 +263,6 @@ export function BookingsPanel({ deliveryLabel, onStatsUpdate }: BookingsPanelPro
             {showAddModal && (
                 <AddBookingModal
                     areas={areas}
-                    token={token}
                     onClose={() => setShowAddModal(false)}
                     onSuccess={() => {
                         setShowAddModal(false);
@@ -280,7 +276,6 @@ export function BookingsPanel({ deliveryLabel, onStatsUpdate }: BookingsPanelPro
             {editingBooking && (
                 <EditTiffinModal
                     booking={editingBooking}
-                    token={token}
                     onClose={() => setEditingBooking(null)}
                     onSuccess={() => {
                         setEditingBooking(null);
@@ -452,12 +447,10 @@ function CopyButton({ value }: { value: string }) {
 // Add Booking Modal
 function AddBookingModal({
     areas,
-    token,
     onClose,
     onSuccess
 }: {
     areas: string[];
-    token: string | null;
     onClose: () => void;
     onSuccess: () => void;
 }) {
@@ -489,8 +482,7 @@ function AddBookingModal({
             const res = await fetch("/api/admin/bookings", {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify(form)
             });
@@ -635,12 +627,10 @@ function AddBookingModal({
 // Edit Tiffin Modal
 function EditTiffinModal({
     booking,
-    token,
     onClose,
     onSuccess
 }: {
     booking: BookingData;
-    token: string | null;
     onClose: () => void;
     onSuccess: () => void;
 }) {
@@ -655,8 +645,7 @@ function EditTiffinModal({
             const res = await fetch("/api/admin/bookings", {
                 method: "PATCH",
                 headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify({ bookingId: booking.id, action, tiffinCount: count })
             });

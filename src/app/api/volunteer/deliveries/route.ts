@@ -3,6 +3,7 @@ import { authorizeUser } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { getDeliveryWindow } from "@/lib/delivery";
 import { DateTime } from "luxon";
+import { calculateEffectiveTiffins } from "@/lib/booking_utils";
 
 /**
  * GET: List all bookings assigned to the volunteer's areas for the current delivery window
@@ -36,8 +37,22 @@ export async function GET(req: Request) {
         // 1. Fetch bookings in volunteer's areas
         const whereClause: any = {
             status: "ACTIVE",
-            startDate: { lte: targetDateJS },
-            endDate: { gte: targetDateJS },
+            OR: [
+                {
+                    startDate: { lte: targetDateJS },
+                    endDate: { gte: targetDateJS }
+                },
+                {
+                    modifications: {
+                        some: {
+                            date: {
+                                gte: targetDateJS,
+                                lt: dayAfterJS
+                            }
+                        }
+                    }
+                }
+            ],
             user: {
                 area: { in: volunteer.areas },
                 ...(query.length > 0 && {
@@ -138,7 +153,7 @@ export async function GET(req: Request) {
             return {
                 id: booking.id,
                 user: booking.user,
-                tiffinCount: isCancelled ? 0 : (mod?.tiffinCount ?? booking.tiffinCount),
+                tiffinCount: calculateEffectiveTiffins(booking, mod, targetDate),
                 isCancelled,
                 isDelivered,
                 deliveredAt: isDelivered ? booking.deliveries[0].deliveredAt : null,

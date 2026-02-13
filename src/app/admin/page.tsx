@@ -24,6 +24,11 @@ import {
     TrendingUp,
     LogOut,
     ShieldAlert,
+    Phone,
+    PhoneCall,
+    Minus,
+    Plus,
+    ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -39,8 +44,15 @@ interface Stats {
         id: string;
         name: string;
         phone: string;
+        alternatePhone?: string | null;
         area: string;
+        address: string;
+        landmark?: string | null;
+        pin: string;
         tiffinCount: number;
+        bookingType: string;
+        startDate?: string;
+        endDate?: string;
     }[];
 }
 
@@ -90,9 +102,7 @@ export default function AdminPage() {
 
     const fetchConfig = async () => {
         try {
-            const res = await fetch("/api/admin/config", {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await fetch("/api/admin/config");
             if (res.ok) {
                 setConfig(await res.json());
             }
@@ -104,9 +114,7 @@ export default function AdminPage() {
     const fetchStats = async () => {
         setIsRefreshing(true);
         try {
-            const res = await fetch("/api/admin/stats", {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await fetch("/api/admin/stats");
             if (res.ok) {
                 const data = await res.json();
                 setStats(data.stats);
@@ -121,21 +129,29 @@ export default function AdminPage() {
         }
     };
 
-    const handleVerifyUser = async (userId: string) => {
+    const handleVerifyUser = async (user: any, updatedTiffinCount?: number) => {
+        const tCount = updatedTiffinCount ?? user.tiffinCount;
+        const confirmMsg = `Verify ${user.name}?\n\nAddress: ${user.address}\nTiffins: ${tCount}\nType: ${user.bookingType}\nDuration: ${user.startDate ? new Date(user.startDate).toLocaleDateString() : 'N/A'} to ${user.endDate ? new Date(user.endDate).toLocaleDateString() : 'N/A'}`;
+
+        if (!confirm(confirmMsg)) return;
+
         try {
             const res = await fetch("/api/admin/users", {
                 method: "PATCH",
                 headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
+                    "Content-Type": "application/json"
                 },
-                body: JSON.stringify({ userId, verified: true })
+                body: JSON.stringify({
+                    userId: user.id,
+                    verified: true,
+                    tiffinCount: tCount // Allow updating during verification
+                })
             });
 
             if (res.ok) {
                 toast.success("User verified successfully");
                 fetchStats();
-            } else {
+            } else if (res.status !== 401) {
                 toast.error("Failed to verify user");
             }
         } catch (error) {
@@ -160,8 +176,8 @@ export default function AdminPage() {
                     {/* Top Row: Title & Actions */}
                     <div className="flex items-center justify-between mb-4">
                         <div>
-                            <h1 className="text-xl font-black text-white">Sehri Logistics</h1>
-                            <p className="text-xs text-zinc-500">Admin Dashboard</p>
+                            <h1 className="text-xl font-black text-white">Apna Naka Free Sehri Service</h1>
+                            <p className="text-xs text-zinc-500">Admin Logistics Dashboard</p>
                         </div>
                         <div className="flex items-center gap-2">
                             <button
@@ -386,8 +402,7 @@ function RamadanControl({
             const res = await fetch("/api/admin/config", {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify(body)
             });
@@ -543,7 +558,7 @@ function OverviewPanel({
     config: RamadanConfig | null;
     token: string | null;
     onConfigUpdate: () => void;
-    onVerifyUser: (id: string) => void;
+    onVerifyUser: (user: any) => void;
 }) {
     return (
         <div className="space-y-6">
@@ -561,32 +576,13 @@ function OverviewPanel({
                             {stats.unverifiedUsers} pending
                         </Badge>
                     </div>
-                    <div className="grid gap-2">
+                    <div className="grid gap-4">
                         {stats.unverifiedList.map(user => (
-                            <div
+                            <UnverifiedUserCard
                                 key={user.id}
-                                className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex items-center justify-between"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
-                                        <UserCheck className="h-5 w-5" />
-                                    </div>
-                                    <div>
-                                        <div className="font-bold text-sm">{user.name}</div>
-                                        <div className="text-[10px] text-zinc-500 flex items-center gap-2">
-                                            <span>{user.area}</span>
-                                            <span>•</span>
-                                            <span>{user.tiffinCount} tiffins</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => onVerifyUser(user.id)}
-                                    className="px-4 py-2 bg-emerald-500 text-black font-bold text-xs rounded-xl hover:bg-emerald-400 transition-colors"
-                                >
-                                    VERIFY
-                                </button>
-                            </div>
+                                user={user}
+                                onVerify={onVerifyUser}
+                            />
                         ))}
                     </div>
                 </div>
@@ -669,6 +665,113 @@ function OverviewPanel({
                     </CardContent>
                 </Card>
             )}
+        </div>
+    );
+}
+
+// Unverified User Card with Local State for Tiffin Adjustment
+function UnverifiedUserCard({
+    user,
+    onVerify
+}: {
+    user: any;
+    onVerify: (user: any, count: number) => void;
+}) {
+    const [count, setCount] = useState(user.tiffinCount);
+
+    return (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl relative group">
+            <div className="p-4 border-b border-zinc-800/50 flex items-center justify-between bg-zinc-900/50">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center border border-amber-500/20">
+                        <UserCheck className="h-5 w-5" />
+                    </div>
+                    <div>
+                        <div className="font-bold text-sm text-white">{user.name}</div>
+                        <div className="text-[10px] text-zinc-500 uppercase font-bold tracking-tight">
+                            <span className="text-zinc-400">{user.area}</span>
+                        </div>
+                    </div>
+                </div>
+                <button
+                    onClick={() => onVerify(user, count)}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 text-black font-black text-xs rounded-xl hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
+                >
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    VERIFY
+                </button>
+            </div>
+
+            <div className="p-4 bg-zinc-950/40 grid grid-cols-2 gap-5">
+                {/* Tiffin Editor */}
+                <div className="col-span-2 flex items-center justify-between p-3 bg-zinc-900/80 border border-zinc-800 rounded-xl">
+                    <div className="space-y-0.5">
+                        <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Verify Tiffins</p>
+                        <p className="text-[10px] text-zinc-400 font-medium italic">Confirmed during call?</p>
+                    </div>
+                    <div className="flex items-center gap-3 bg-black/40 p-1.5 rounded-lg border border-zinc-800">
+                        <button
+                            onClick={() => setCount(Math.max(1, count - 1))}
+                            className="w-7 h-7 rounded-md bg-zinc-800 flex items-center justify-center hover:bg-zinc-700 text-zinc-400"
+                        >
+                            <Minus className="h-3.5 w-3.5" />
+                        </button>
+                        <span className="text-lg font-black min-w-[1.5rem] text-center text-emerald-400">{count}</span>
+                        <button
+                            onClick={() => setCount(count + 1)}
+                            className="w-7 h-7 rounded-md bg-zinc-800 flex items-center justify-center hover:bg-zinc-700 text-zinc-400"
+                        >
+                            <Plus className="h-3.5 w-3.5" />
+                        </button>
+                    </div>
+                </div>
+
+                <div className="space-y-2.5">
+                    <p className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest">Contact Numbers</p>
+                    <div className="flex flex-col gap-2.5">
+                        <a
+                            href={`tel:${user.phone}`}
+                            className="flex items-center gap-2 text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors bg-emerald-500/5 px-2 py-1.5 rounded-lg border border-emerald-500/10"
+                        >
+                            <PhoneCall className="h-3.5 w-3.5" /> {user.phone}
+                        </a>
+                        {user.alternatePhone && (
+                            <a
+                                href={`tel:${user.alternatePhone}`}
+                                className="flex items-center gap-2 text-xs font-bold text-zinc-400 hover:text-zinc-300 transition-colors bg-zinc-900 px-2 py-1.5 rounded-lg border border-zinc-800"
+                            >
+                                <Phone className="h-3.5 w-3.5" /> {user.alternatePhone}
+                            </a>
+                        )}
+                    </div>
+                </div>
+
+                <div className="space-y-2.5 text-right">
+                    <p className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest">Booking Info</p>
+                    <div className="flex flex-col items-end gap-1">
+                        <Badge className="bg-zinc-800 text-zinc-400 border-zinc-700 text-[8px] h-4">{user.bookingType.replace('_', ' ')}</Badge>
+                        <p className="text-[10px] font-black text-white bg-white/5 px-2 py-1 rounded-md">
+                            {user.startDate ? new Date(user.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : 'N/A'}
+                            <span className="mx-1 text-zinc-600">→</span>
+                            {user.endDate ? new Date(user.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : 'N/A'}
+                        </p>
+                    </div>
+                </div>
+
+                <div className="col-span-2 pt-3 border-t border-zinc-800/50">
+                    <p className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest mb-1.5">Full Delivery Address</p>
+                    <div className="p-3 bg-white/5 rounded-xl border border-white/5">
+                        <p className="text-[11px] leading-relaxed text-zinc-300 font-medium">
+                            {user.address}
+                            {user.landmark && (
+                                <span className="block mt-1 text-amber-500/80 text-[10px] font-bold">
+                                    LANDMARK: {user.landmark}
+                                </span>
+                            )}
+                        </p>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }

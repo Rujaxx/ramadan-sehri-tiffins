@@ -63,9 +63,7 @@ export function AnalyticsPanel() {
     const fetchAnalytics = async () => {
         setIsLoading(true);
         try {
-            const res = await fetch("/api/admin/analytics", {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await fetch("/api/admin/analytics");
             if (res.ok) {
                 const data = await res.json();
                 setSummary(data.summary);
