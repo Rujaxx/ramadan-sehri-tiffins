@@ -15,7 +15,8 @@ import {
     Check,
     X,
     ChevronDown,
-    Copy
+    Copy,
+    MoreVertical
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
@@ -27,8 +28,15 @@ import {
     TableRow
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { RAMADAN_AREAS } from "@/lib/constants";
+import { maskPhone } from "@/lib/utils";
 
 interface User {
     id: string;
@@ -55,6 +63,14 @@ export function UserManagement({ defaultFilter }: { defaultFilter?: boolean | nu
     const [newTiffinCount, setNewTiffinCount] = useState<number>(0);
     const [isUpdating, setIsUpdating] = useState(false);
     const [filterVerified, setFilterVerified] = useState<boolean | null>(null);
+    const [revealedUsers, setRevealedUsers] = useState<Set<string>>(new Set());
+
+    const toggleReveal = (userId: string) => {
+        const next = new Set(revealedUsers);
+        if (next.has(userId)) next.delete(userId);
+        else next.add(userId);
+        setRevealedUsers(next);
+    };
 
     useEffect(() => {
         if (defaultFilter !== undefined) {
@@ -248,111 +264,36 @@ export function UserManagement({ defaultFilter }: { defaultFilter?: boolean | nu
                 </CardHeader>
 
                 <CardContent className="p-0">
-                    <div className="overflow-x-auto custom-scrollbar">
-                        <Table>
-                            <TableHeader className="bg-white/5">
-                                <TableRow className="hover:bg-transparent border-white/5">
-                                    <TableHead className="font-bold py-4 text-xs uppercase tracking-wider">User Details</TableHead>
-                                    <TableHead className="font-bold py-4 text-xs uppercase tracking-wider hidden sm:table-cell">Area & Location</TableHead>
-                                    <TableHead className="font-bold py-4 text-center text-xs uppercase tracking-wider">Service</TableHead>
-                                    <TableHead className="font-bold py-4 text-center text-xs uppercase tracking-wider">Security</TableHead>
-                                    <TableHead className="font-bold py-4 text-right text-xs uppercase tracking-wider">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {isLoading ? (
-                                    <TableRow>
-                                        <TableCell colSpan={6} className="h-64 text-center">
-                                            <Loader2 className="h-10 w-10 animate-spin mx-auto text-emerald-500 mb-4" />
-                                            <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px]">Accessing Database...</p>
-                                        </TableCell>
-                                    </TableRow>
-                                ) : users.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={6} className="h-64 text-center">
-                                            <div className="bg-zinc-900/50 w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4 border border-zinc-800">
-                                                <SearchX className="h-8 w-8 text-zinc-700" />
-                                            </div>
-                                            <p className="text-zinc-500 font-bold">No results for "{query}"</p>
-                                            <p className="text-[10px] text-zinc-600 mt-1 uppercase tracking-wider">Try searching by mobile number</p>
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    users
-                                        .filter(user => filterVerified === null || user.verified === filterVerified)
-                                        .map((user) => (
-                                            <TableRow key={user.id} className="hover:bg-white/5 border-white/5 group transition-colors">
-                                                <TableCell className="py-4 sm:py-5">
-                                                    <div className="flex flex-col">
-                                                        <span className="font-black text-white text-sm sm:text-base line-clamp-1">{user.name}</span>
-                                                        <div className="flex flex-col gap-1 mt-1">
-                                                            <div className="flex items-center gap-2">
-                                                                <a href={`tel:${user.phone}`} className="text-[11px] sm:text-xs text-emerald-400 font-black flex items-center gap-1 hover:underline">
-                                                                    <Phone className="h-3 w-3" />
-                                                                    {user.phone}
-                                                                </a>
-                                                                <CopyButton value={user.phone} />
-                                                            </div>
-                                                            {user.alternatePhone && (
-                                                                <div className="flex items-center gap-2">
-                                                                    <a href={`tel:${user.alternatePhone}`} className="text-[11px] sm:text-xs text-zinc-400 font-bold flex items-center gap-1 hover:underline">
-                                                                        <Phone className="h-3 w-3 opacity-70" />
-                                                                        {user.alternatePhone}
-                                                                    </a>
-                                                                    <CopyButton value={user.alternatePhone} />
-                                                                </div>
-                                                            )}
-                                                            <span className="text-[9px] sm:text-[10px] text-zinc-500 font-bold sm:hidden">{user.area}</span>
-                                                        </div>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="hidden sm:table-cell">
-                                                    <div className="flex flex-col gap-1">
-                                                        <div className="flex items-center gap-1.5 text-zinc-200">
-                                                            <MapPin className="h-3.5 w-3.5 text-emerald-500" />
-                                                            <span className="text-sm font-black uppercase tracking-tight">{user.area}</span>
-                                                        </div>
-                                                        <span className="text-[10px] text-zinc-500 font-medium line-clamp-1 max-w-[200px]">{user.address}</span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    <div className="inline-flex flex-col items-center">
-                                                        <div className="flex items-center gap-1.5 sm:gap-2 bg-zinc-900 border border-zinc-800 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl text-sm sm:text-base font-black text-white">
-                                                            <Utensils className="h-3.5 w-3.5 sm:h-4 sm:h-4 text-emerald-500" />
-                                                            {user.bookings[0]?.tiffinCount || 0}
-                                                        </div>
-                                                        <span className="text-[7px] sm:text-[8px] font-black text-zinc-600 uppercase mt-1 tracking-widest">Units</span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    <div className="flex flex-col items-center gap-1.5">
-                                                        {user.blocked ? (
-                                                            <Badge className="bg-red-500/20 text-red-400 border-red-500/30 rounded-lg font-black text-[8px] sm:text-[9px] px-1.5 sm:px-2 py-0.5">
-                                                                BLOCKED
-                                                            </Badge>
-                                                        ) : user.verified ? (
-                                                            <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 rounded-lg font-black text-[8px] sm:text-[9px] px-1.5 sm:px-2 py-0.5">
-                                                                VERIFIED
-                                                            </Badge>
-                                                        ) : (
-                                                            <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/30 rounded-lg font-black text-[8px] sm:text-[9px] px-1.5 sm:px-2 py-0.5">
-                                                                PENDING
-                                                            </Badge>
-                                                        )}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    <div className="flex justify-end gap-1.5 sm:gap-2 px-1 sm:px-2 text-[10px]">
-                                                        {!user.verified && !user.blocked && (
-                                                            <button
-                                                                onClick={() => handleVerify(user)}
-                                                                className="h-9 sm:h-10 px-2 sm:px-4 rounded-lg sm:rounded-xl bg-emerald-500 text-black font-black flex items-center gap-1 hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/20"
-                                                                title="Verify"
-                                                            >
-                                                                <Check className="h-3.5 w-3.5" /> <span className="hidden xs:inline">VERIFY</span>
-                                                            </button>
-                                                        )}
-                                                        <button
+                    <div className="flex flex-col">
+                        {isLoading ? (
+                            <div className="py-20 flex flex-col items-center justify-center text-zinc-500">
+                                <Loader2 className="h-10 w-10 animate-spin mb-4 text-emerald-500" />
+                                <p className="text-[10px] uppercase font-black tracking-[0.2em]">Synchronizing</p>
+                            </div>
+                        ) : users.length === 0 ? (
+                            <div className="py-20 flex flex-col items-center justify-center text-center px-6">
+                                <div className="bg-zinc-900/50 w-16 h-16 rounded-3xl flex items-center justify-center mb-4 border border-zinc-800">
+                                    <SearchX className="h-8 w-8 text-zinc-700" />
+                                </div>
+                                <p className="text-zinc-500 font-black">NO MATCHES FOUND</p>
+                                <p className="text-[10px] text-zinc-600 mt-2 uppercase tracking-wide">Try a different name or number</p>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col divide-y divide-white/5 max-w-5xl mx-auto w-full">
+                                {users
+                                    .filter(user => filterVerified === null || user.verified === filterVerified)
+                                    .map((user) => (
+                                        <div key={user.id} className="relative px-4 py-3 sm:pl-6 sm:pr-12 sm:py-4 hover:bg-white/[0.02] transition-all group">
+                                            {/* Action Dropdown - Top Right Corner */}
+                                            <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-30">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <button className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-zinc-500 hover:text-white transition-colors">
+                                                            <MoreVertical className="h-4 w-4" />
+                                                        </button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end" className="w-48 bg-zinc-900 border-zinc-800 text-zinc-300">
+                                                        <DropdownMenuItem
                                                             onClick={() => {
                                                                 setEditingUser(user);
                                                                 setNewTiffinCount(user.bookings[0]?.tiffinCount || 0);
@@ -363,31 +304,138 @@ export function UserManagement({ defaultFilter }: { defaultFilter?: boolean | nu
                                                                     area: user.area,
                                                                     address: user.address,
                                                                     landmark: user.landmark,
-                                                                    pin: "" // Don't show the hashed PIN, allow setting a new one
+                                                                    pin: ""
                                                                 });
                                                             }}
-                                                            className="h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center rounded-lg sm:rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all"
-                                                            title="Edit"
+                                                            className="flex items-center gap-2 focus:bg-emerald-500/10 focus:text-emerald-400 cursor-pointer py-2.5"
                                                         >
                                                             <Edit2 className="h-4 w-4" />
-                                                        </button>
-                                                        <button
+                                                            <span className="font-bold text-xs uppercase tracking-widest">Edit Details</span>
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
                                                             onClick={() => handleToggleBlock(user)}
-                                                            className={`h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center rounded-lg sm:rounded-xl border transition-all ${user.blocked
-                                                                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                                                                : "bg-red-500/10 border-red-500/20 text-red-400"
-                                                                }`}
-                                                            title={user.blocked ? "Unblock" : "Block"}
+                                                            className={`flex items-center gap-2 focus:bg-red-500/10 cursor-pointer py-2.5 ${user.blocked ? "text-emerald-400 focus:text-emerald-400" : "text-red-400 focus:text-red-400"}`}
                                                         >
-                                                            {user.blocked ? <UserCheck className="h-4 w-4" /> : <UserX className="h-4 w-4" />}
-                                                        </button>
+                                                            {user.blocked ? (
+                                                                <>
+                                                                    <UserCheck className="h-4 w-4" />
+                                                                    <span className="font-bold text-xs uppercase tracking-widest">Unblock User</span>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <UserX className="h-4 w-4" />
+                                                                    <span className="font-bold text-xs uppercase tracking-widest">Block User</span>
+                                                                </>
+                                                            )}
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-x-6 gap-y-3">
+
+                                                {/* TOP LEFT: Identity & Location */}
+                                                <div className="space-y-2 flex-1 min-w-0">
+                                                    <div className="flex items-center gap-3">
+                                                        <h4 className="font-black text-white text-lg tracking-tight leading-none truncate group-hover:text-emerald-400 transition-colors">
+                                                            {user.name}
+                                                        </h4>
+                                                        <div className="flex items-center gap-1.5 shrink-0">
+                                                            <div className="bg-emerald-500/10 p-0.5 rounded border border-emerald-500/20">
+                                                                <MapPin className="h-3 w-3 text-emerald-500" />
+                                                            </div>
+                                                            <span className="text-[9px] font-black text-zinc-400 uppercase tracking-tighter">{user.area}</span>
+                                                        </div>
                                                     </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
-                                )}
-                            </TableBody>
-                        </Table>
+                                                    <div className="pl-4 space-y-0.5 border-l border-zinc-800 ml-[5px]">
+                                                        <p className="text-[11px] text-zinc-500 font-medium leading-relaxed break-words">
+                                                            {user.address}
+                                                        </p>
+                                                        {user.landmark && (
+                                                            <p className="text-[9px] text-emerald-500/50 font-black uppercase tracking-tighter flex items-center gap-1.5 transition-opacity group-hover:opacity-100 opacity-60">
+                                                                Near: {user.landmark}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* TOP RIGHT: Global Stats & Status */}
+                                                <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2">
+                                                    <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-2 py-1 rounded-lg">
+                                                        <Utensils className="h-3.5 w-3.5 text-emerald-500" />
+                                                        <span className="text-base font-black text-white leading-none">{user.bookings[0]?.tiffinCount || 0}</span>
+                                                        <span className="text-[7px] font-black text-zinc-600 uppercase tracking-tighter">Units</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5">
+                                                        {user.blocked ? (
+                                                            <div className="bg-red-500/10 text-red-500 text-[8px] font-black px-2 py-0.5 rounded border border-red-500/20 uppercase tracking-tighter">Blocked</div>
+                                                        ) : user.verified ? (
+                                                            <div className="bg-emerald-500/10 text-emerald-500 text-[8px] font-black px-2 py-0.5 rounded border border-emerald-500/20 uppercase tracking-tighter">Verified</div>
+                                                        ) : (
+                                                            <div className="flex items-center gap-1">
+                                                                <div className="bg-amber-500/10 text-amber-500 text-[8px] font-black px-2 py-0.5 rounded border border-amber-500/20 uppercase tracking-tighter animate-pulse">Pending</div>
+                                                                <button
+                                                                    onClick={() => handleVerify(user)}
+                                                                    className="h-6 w-6 flex items-center justify-center rounded-md bg-emerald-500 text-black shadow-lg shadow-emerald-500/20 active:scale-95 transition-all hover:bg-emerald-400"
+                                                                    title="Verify User"
+                                                                >
+                                                                    <Check className="h-3.5 w-3.5" />
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* BOTTOM LEFT: Contact Cards */}
+                                                <div className="flex flex-col sm:flex-row gap-2 w-full max-w-2xl">
+                                                    <div className="flex-1 min-w-0 flex items-center justify-between bg-zinc-900/30 p-2 rounded-xl border border-white/5 hover:border-emerald-500/20 transition-all group/phone relative">
+                                                        <div className="flex items-center gap-2.5">
+                                                            <a
+                                                                href={`tel:${user.phone}`}
+                                                                className="h-8 w-8 flex items-center justify-center rounded-lg bg-emerald-500 text-black shadow-lg shadow-emerald-500/10 active:scale-90 transition-all"
+                                                            >
+                                                                <Phone className="h-3.5 w-3.5" />
+                                                            </a>
+                                                            <div className="flex flex-col">
+                                                                <span
+                                                                    onClick={() => toggleReveal(user.id)}
+                                                                    className="text-xs text-emerald-400 font-black tracking-tight cursor-pointer"
+                                                                >
+                                                                    {revealedUsers.has(user.id) ? user.phone : maskPhone(user.phone)}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <CopyButton value={user.phone} />
+                                                    </div>
+
+                                                    {user.alternatePhone && (
+                                                        <div className="flex-1 min-w-0 flex items-center justify-between bg-zinc-900/30 p-2 rounded-xl border border-white/5 opacity-70 hover:opacity-100 transition-all relative">
+                                                            <div className="flex items-center gap-2.5">
+                                                                <a
+                                                                    href={`tel:${user.alternatePhone}`}
+                                                                    className="h-8 w-8 flex items-center justify-center rounded-lg bg-zinc-800 text-zinc-400 active:scale-90 transition-all"
+                                                                >
+                                                                    <Phone className="h-3.5 w-3.5" />
+                                                                </a>
+                                                                <div className="flex flex-col">
+                                                                    <span
+                                                                        onClick={() => toggleReveal(user.id)}
+                                                                        className="text-xs text-zinc-400 font-black tracking-tight cursor-pointer"
+                                                                    >
+                                                                        {revealedUsers.has(user.id) ? user.alternatePhone : maskPhone(user.alternatePhone)}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                            <CopyButton value={user.alternatePhone} />
+                                                        </div>
+                                                    )}
+                                                </div>
+
+
+                                            </div>
+                                        </div>
+                                    ))}
+                            </div>
+                        )}
                     </div>
                 </CardContent>
             </Card>
