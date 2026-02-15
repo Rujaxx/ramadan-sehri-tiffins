@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
+import { maskPhone } from "@/lib/utils";
+
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -319,7 +321,11 @@ function BookingCard({
                         </div>
                         <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-1.5">
-                                <span className="font-bold text-sm truncate text-white leading-tight">{booking.user.name}</span>
+                                <span
+                                    className="font-bold text-sm truncate text-white leading-tight"
+                                >
+                                    {booking.user.name}
+                                </span>
                                 <Badge className="bg-zinc-800/80 text-zinc-400 text-[9px] px-1.5 py-0 h-4 font-medium border-zinc-700/50">
                                     {booking.user.area}
                                 </Badge>
@@ -329,21 +335,37 @@ function BookingCard({
                             </div>
 
                             <div className="flex items-center gap-2 mt-1">
-                                <div className="flex items-center gap-1">
-                                    <button
-                                        onClick={() => setShowPhone(!showPhone)}
-                                        className="flex items-center gap-1 text-[10px] text-zinc-500 hover:text-zinc-300 font-medium transition-colors"
+                                <div className="flex items-center gap-1.5">
+                                    <a
+                                        href={`tel:${booking.user.phone}`}
+                                        className="h-5 w-5 flex items-center justify-center rounded-md bg-zinc-800 text-zinc-500 hover:text-emerald-400 transition-colors"
+                                        title="Direct Call"
                                     >
                                         <Phone className="h-2.5 w-2.5" />
-                                        <span>{showPhone ? booking.user.phone : `••••${booking.user.phone.slice(-4)}`}</span>
-                                    </button>
+                                    </a>
+                                    <span
+                                        onClick={() => setShowPhone(!showPhone)}
+                                        className="text-[10px] text-zinc-500 hover:text-zinc-300 font-medium transition-colors cursor-pointer"
+                                    >
+                                        {showPhone ? booking.user.phone : maskPhone(booking.user.phone)}
+                                    </span>
                                     <CopyButton value={booking.user.phone} />
                                 </div>
                                 {booking.user.alternatePhone && (
-                                    <div className="flex items-center gap-1 outline-none">
+                                    <div className="flex items-center gap-1.5 outline-none">
                                         <span className="text-[10px] text-zinc-600 font-medium">|</span>
-                                        <span className="text-[10px] text-zinc-600 font-medium">
-                                            {showPhone ? booking.user.alternatePhone : `••${booking.user.alternatePhone.slice(-4)}`}
+                                        <a
+                                            href={`tel:${booking.user.alternatePhone}`}
+                                            className="h-5 w-5 flex items-center justify-center rounded-md bg-zinc-800 text-zinc-500 hover:text-zinc-400 transition-colors"
+                                            title="Direct Call"
+                                        >
+                                            <Phone className="h-2.5 w-2.5" />
+                                        </a>
+                                        <span
+                                            onClick={() => setShowPhone(!showPhone)}
+                                            className="text-[10px] text-zinc-600 font-medium cursor-pointer"
+                                        >
+                                            {showPhone ? booking.user.alternatePhone : maskPhone(booking.user.alternatePhone)}
                                         </span>
                                         <CopyButton value={booking.user.alternatePhone} />
                                     </div>

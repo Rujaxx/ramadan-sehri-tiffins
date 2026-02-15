@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
+import { maskPhone } from "@/lib/utils";
 
 interface VolunteerData {
     id: string;
@@ -263,6 +264,7 @@ function VolunteerCard({
     onRefresh: () => void;
 }) {
     const [isUpdating, setIsUpdating] = useState(false);
+    const [showSensitive, setShowSensitive] = useState(false);
 
     const handleAreaToggle = async (areaName: string, isAssigned: boolean) => {
         setIsUpdating(true);
@@ -311,12 +313,29 @@ function VolunteerCard({
                         <User className="h-5 w-5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                        <div className="font-bold truncate">{volunteer.name}</div>
-                        <div className="flex items-center gap-2 text-xs text-zinc-500">
-                            <div className="flex items-center gap-1">
+                        <div
+                            className="font-bold truncate"
+                        >
+                            {volunteer.name}
+                        </div>
+                        <div className="flex items-center gap-1.5 text-xs text-zinc-500">
+                            <a
+                                href={`tel:${volunteer.phone}`}
+                                className="h-6 w-6 flex items-center justify-center rounded-lg bg-zinc-800 text-zinc-500 hover:text-emerald-400 transition-colors"
+                                title="Direct Call"
+                                onClick={(e) => e.stopPropagation()}
+                            >
                                 <Phone className="h-3 w-3" />
-                                <span>{volunteer.phone}</span>
-                            </div>
+                            </a>
+                            <span
+                                className="hover:text-zinc-300 transition-colors cursor-pointer"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowSensitive(!showSensitive);
+                                }}
+                            >
+                                {showSensitive ? volunteer.phone : maskPhone(volunteer.phone)}
+                            </span>
                             <CopyButton value={volunteer.phone} />
                         </div>
                     </div>
