@@ -29,7 +29,7 @@ export async function GET(req: Request) {
         const status = searchParams.get("status") || "ALL"; // ALL, PENDING, DELIVERED
         const query = searchParams.get("query") || "";
 
-        const { targetDate, windowStart, windowEnd } = await getDeliveryWindow();
+        const { targetDate, windowStart, windowEnd } = getDeliveryWindow();
         const targetDateStartJS = targetDate.startOf("day").toJSDate();
         const targetDateEndJS = targetDate.endOf("day").toJSDate();
         const dayAfterJS = targetDate.plus({ days: 1 }).startOf("day").toJSDate();
@@ -214,7 +214,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Booking is not in your assigned areas" }, { status: 403 });
         }
 
-        const { windowStart, windowEnd } = await getDeliveryWindow();
+        const { windowStart, windowEnd } = getDeliveryWindow();
         const windowStartJS = windowStart.toJSDate();
         const windowEndJS = windowEnd.toJSDate();
         const now = DateTime.now().setZone("Asia/Kolkata");
@@ -302,7 +302,7 @@ export async function DELETE(req: Request) {
             return NextResponse.json({ error: "Booking is not in your assigned areas" }, { status: 403 });
         }
 
-        const { windowStart, windowEnd } = await getDeliveryWindow();
+        const { windowStart, windowEnd } = getDeliveryWindow();
 
         // Delete any delivery records for this booking in the current window
         await db.delivery.deleteMany({

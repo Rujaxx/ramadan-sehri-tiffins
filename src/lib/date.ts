@@ -80,7 +80,7 @@ export function getEffectiveDeliveryDate(nowISO?: string): DateTime {
 export function getNextDeliveryLabel(status: SeasonStatus, config?: GlobalConfig): string {
     switch (status) {
         case "PRE_SEASON":
-            let displayDate = "Feb 18";
+            let displayDate = "Feb 19";
             if (config?.officialStartDate) {
                 const dateObj = typeof config.officialStartDate === "string"
                     ? new Date(config.officialStartDate)

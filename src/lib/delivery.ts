@@ -1,47 +1,18 @@
 import { DateTime } from "luxon";
-import { db } from "./db";
 
 /**
- * Calculate the target delivery date (Sehri date)
+ * Calculate the target delivery date (Sehri date) based on current time.
  * For "8th Feb Sehri", window is: 7th Feb 6AM → 8th Feb 6AM IST
+ * 
+ * Always uses today's real date — no clamping to officialStartDate.
  */
-export async function getDeliveryWindow() {
-    const config = await db.globalConfig.findUnique({ where: { id: "singleton" } });
+export function getDeliveryWindow() {
     const now = DateTime.now().setZone("Asia/Kolkata");
 
-    let targetDate: DateTime;
-
-    const realTargetDate = now.hour >= 6
+    // After 6 AM → target is tomorrow's Sehri; before 6 AM → target is today's Sehri
+    const targetDate = now.hour >= 6
         ? now.plus({ days: 1 }).startOf("day")
         : now.startOf("day");
-
-    if (config?.ramadanStarted) {
-        let officialStart: DateTime | null = null;
-        if (config.officialStartDate) {
-            const dateStr = typeof config.officialStartDate === "string"
-                ? config.officialStartDate
-                : (config.officialStartDate as Date).toISOString();
-            officialStart = DateTime.fromISO(dateStr.split('T')[0]).setZone("Asia/Kolkata").startOf("day");
-        }
-
-        // If it's already past the official start, use the real current target
-        // Otherwise, stay on the official start date
-        if (officialStart && realTargetDate < officialStart) {
-            targetDate = officialStart;
-        } else {
-            targetDate = realTargetDate;
-        }
-    } else {
-        // Onboarding phase: use official start date if set, otherwise Feb 18
-        if (config?.officialStartDate) {
-            const dateStr = typeof config.officialStartDate === "string"
-                ? config.officialStartDate
-                : (config.officialStartDate as Date).toISOString();
-            targetDate = DateTime.fromISO(dateStr.split('T')[0]).setZone("Asia/Kolkata").startOf("day");
-        } else {
-            targetDate = DateTime.fromObject({ year: 2026, month: 2, day: 18 }, { zone: "Asia/Kolkata" }).startOf("day");
-        }
-    }
 
     // Window: previous day 6AM to target day 6AM
     const windowStart = targetDate.minus({ days: 1 }).set({ hour: 6, minute: 0, second: 0 });

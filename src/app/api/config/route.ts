@@ -10,7 +10,7 @@ export async function GET() {
             where: { id: "singleton" }
         });
 
-        const { targetDate, displayDate } = await getDeliveryWindow();
+        const { targetDate, displayDate } = getDeliveryWindow();
         const now = DateTime.now().setZone("Asia/Kolkata");
 
         // isAfterCutoff is true if we are past 2 AM for today's delivery window

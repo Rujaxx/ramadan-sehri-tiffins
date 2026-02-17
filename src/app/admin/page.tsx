@@ -380,7 +380,7 @@ function RamadanControl({
     token: string | null;
     onUpdate: () => void;
 }) {
-    const [startDate, setStartDate] = useState("2026-02-18");
+    const [startDate, setStartDate] = useState("2026-02-19");
     const [isUpdating, setIsUpdating] = useState(false);
 
     // Sync internal state with config when it loads
@@ -604,7 +604,10 @@ function OverviewPanel({
             )}
 
             {/* Cutoff Clock */}
-            <CutoffClock />
+            <CutoffClock
+                serverTargetDate={deliveryInfo?.displayDate}
+                officialStartDate={config?.officialStartDate}
+            />
 
             {/* Capacity */}
             <Card className="bg-zinc-900 border-zinc-800">

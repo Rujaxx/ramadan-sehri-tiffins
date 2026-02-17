@@ -79,7 +79,7 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json();
-        const { phone, name, areas = [] } = body;
+        const { phone, name, areas = [], pin } = body;
 
         if (!phone) {
             return NextResponse.json({ error: "Phone number required" }, { status: 400 });
@@ -99,6 +99,9 @@ export async function POST(req: Request) {
             if (!name) {
                 return NextResponse.json({ error: "Name required for new volunteer" }, { status: 400 });
             }
+            if (!pin) {
+                return NextResponse.json({ error: "PIN required for new volunteer" }, { status: 400 });
+            }
             // Create new user as volunteer
             user = await db.user.create({
                 data: {
@@ -107,7 +110,7 @@ export async function POST(req: Request) {
                     address: "",
                     landmark: "",
                     area: "",
-                    pin: "",
+                    pin,
                     role: "VOLUNTEER",
                     verified: true,
                 }

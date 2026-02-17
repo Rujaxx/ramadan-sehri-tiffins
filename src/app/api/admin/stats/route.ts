@@ -11,7 +11,7 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { targetDate, windowStart, windowEnd, displayLabel, displayDate } = await getDeliveryWindow();
+        const { targetDate, windowStart, windowEnd, displayLabel, displayDate } = getDeliveryWindow();
         const windowStartJS = windowStart.toJSDate();
         const windowEndJS = windowEnd.toJSDate();
 

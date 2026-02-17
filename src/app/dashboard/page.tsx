@@ -127,7 +127,7 @@ export default function UserDashboard() {
         );
     }
 
-    const ramadanStart = config?.officialStartDate?.toString() || "2026-02-18";
+    const ramadanStart = config?.officialStartDate?.toString() || "2026-02-19";
     const ramadanEnd = RAMADAN_END_DATE;
 
     return (

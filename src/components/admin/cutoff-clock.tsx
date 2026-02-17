@@ -7,7 +7,12 @@ import { DateTime } from "luxon";
 // 6 AM cutoff for Sehri deliveries
 const SEHRI_CUTOFF_HOUR = 6;
 
-export function CutoffClock() {
+interface CutoffClockProps {
+    serverTargetDate?: string | null;
+    officialStartDate?: string | null;
+}
+
+export function CutoffClock({ serverTargetDate, officialStartDate }: CutoffClockProps) {
     const [now, setNow] = useState(DateTime.now().setZone("Asia/Kolkata"));
     const [isLocked, setIsLocked] = useState(false);
 
@@ -15,19 +20,38 @@ export function CutoffClock() {
         const timer = setInterval(() => {
             const current = DateTime.now().setZone("Asia/Kolkata");
             setNow(current);
-            // Locked after 6 AM (cutoff passed for today's delivery)
-            setIsLocked(current.hour >= SEHRI_CUTOFF_HOUR);
+
+            // Locked only if we are in the delivery window of the target date 
+            // AND it's after 6 AM of the previous day, essentially.
+            // Simplified: if current time is after 6 AM AND targetDate is tomorrow, it's locked.
+            // But if targetDate is still in the future (official start), it's NOT locked.
+            const currentRealTarget = current.hour >= SEHRI_CUTOFF_HOUR
+                ? current.plus({ days: 1 }).startOf("day")
+                : current.startOf("day");
+
+            const isFutureStart = officialStartDate && currentRealTarget < DateTime.fromISO(officialStartDate.split('T')[0]).setZone("Asia/Kolkata").startOf("day");
+
+            setIsLocked(current.hour >= SEHRI_CUTOFF_HOUR && !isFutureStart);
         }, 1000);
         return () => clearInterval(timer);
-    }, []);
+    }, [officialStartDate]);
 
     const timeString = now.toFormat("hh:mm a");
 
     // Calculate target delivery date
-    // After 6 AM → changes go to tomorrow. Before 6 AM → changes go to today.
-    const targetDate = now.hour >= SEHRI_CUTOFF_HOUR
-        ? now.plus({ days: 1 })
-        : now;
+    const realTargetDate = now.hour >= SEHRI_CUTOFF_HOUR
+        ? now.plus({ days: 1 }).startOf("day")
+        : now.startOf("day");
+
+    let targetDate = realTargetDate;
+    if (officialStartDate) {
+        const officialStartDT = DateTime.fromISO(officialStartDate.split('T')[0]).setZone("Asia/Kolkata").startOf("day");
+        if (realTargetDate < officialStartDT) {
+            targetDate = officialStartDT;
+        }
+    } else if (serverTargetDate) {
+        targetDate = DateTime.fromISO(serverTargetDate).setZone("Asia/Kolkata").startOf("day");
+    }
 
     const lockedDeliveryDate = now.toFormat("d MMM");
     const nextDeliveryDate = targetDate.toFormat("d MMM");
