@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { BookingsPanel } from "@/components/admin/bookings-panel";
 import { VolunteerPanel } from "@/components/admin/volunteer-panel";
 import { AnalyticsPanel } from "@/components/admin/analytics-panel";
+import { CalendarPanel } from "@/components/admin/calendar-panel";
 import { CutoffClock } from "@/components/admin/cutoff-clock";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/context/auth-context";
@@ -78,7 +79,7 @@ interface RamadanConfig {
     officialStartDate: string | null;
 }
 
-type TabType = "bookings" | "volunteers" | "overview" | "analytics" | "users";
+type TabType = "bookings" | "calendar" | "volunteers" | "overview" | "analytics" | "users";
 
 export default function AdminPage() {
     const { user: authUser, token, logout, isLoading: authLoading } = useAuth();
@@ -253,6 +254,12 @@ export default function AdminPage() {
                             label="Bookings"
                         />
                         <TabButton
+                            active={activeTab === "calendar"}
+                            onClick={() => setActiveTab("calendar")}
+                            icon={<Calendar className="h-4 w-4" />}
+                            label="Calendar"
+                        />
+                        <TabButton
                             active={activeTab === "users"}
                             onClick={() => setActiveTab("users")}
                             icon={<Users className="h-4 w-4" />}
@@ -287,6 +294,10 @@ export default function AdminPage() {
                         deliveryLabel={deliveryInfo?.displayLabel || ""}
                         onStatsUpdate={fetchStats}
                     />
+                )}
+
+                {activeTab === "calendar" && (
+                    <CalendarPanel />
                 )}
 
                 {activeTab === "volunteers" && (
