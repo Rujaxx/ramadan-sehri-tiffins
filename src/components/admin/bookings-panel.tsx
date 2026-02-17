@@ -56,10 +56,15 @@ interface BookingsPanelProps {
     onStatsUpdate: () => void;
 }
 
+interface Area {
+    name: string;
+    count: number;
+}
+
 export function BookingsPanel({ deliveryLabel, onStatsUpdate }: BookingsPanelProps) {
     const { token } = useAuth();
     const [bookings, setBookings] = useState<BookingData[]>([]);
-    const [areas, setAreas] = useState<string[]>([]);
+    const [areas, setAreas] = useState<Area[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isMoreLoading, setIsMoreLoading] = useState(false);
     const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -194,7 +199,7 @@ export function BookingsPanel({ deliveryLabel, onStatsUpdate }: BookingsPanelPro
                     >
                         <option value="">All Areas</option>
                         {areas.map(area => (
-                            <option key={area} value={area}>{area}</option>
+                            <option key={area.name} value={area.name}>{area.name}</option>
                         ))}
                     </select>
                 </div>
@@ -221,7 +226,7 @@ export function BookingsPanel({ deliveryLabel, onStatsUpdate }: BookingsPanelPro
                                 <span className="font-bold text-[11px] text-zinc-500 uppercase tracking-wider">{area}</span>
                                 <span className="h-1 w-1 rounded-full bg-zinc-800" />
                                 <span className="text-[10px] text-zinc-600 font-bold">
-                                    {areaBookings.reduce((sum, b) => sum + b.todayTiffinCount, 0)} TIFFINS
+                                    {areas.find(a => a.name === area)?.count || 0} TIFFINS
                                 </span>
                             </div>
 
@@ -264,7 +269,7 @@ export function BookingsPanel({ deliveryLabel, onStatsUpdate }: BookingsPanelPro
             {/* Add Booking Modal */}
             {showAddModal && (
                 <AddBookingModal
-                    areas={areas}
+                    areas={areas.map(area => area.name)}
                     onClose={() => setShowAddModal(false)}
                     onSuccess={() => {
                         setShowAddModal(false);

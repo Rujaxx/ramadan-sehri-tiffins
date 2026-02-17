@@ -18,10 +18,13 @@ import {
     ToggleRight,
     Trash2,
     Copy,
+    Lock,
+    Edit2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
 import { maskPhone } from "@/lib/utils";
+import { PinInput } from "@/components/shared/pin-input";
 
 interface VolunteerData {
     id: string;
@@ -239,6 +242,18 @@ export function VolunteerPanel() {
                     }}
                 />
             )}
+
+            {/* Edit Volunteer Modal */}
+            {editingVolunteer && (
+                <EditVolunteerModal
+                    volunteer={editingVolunteer}
+                    onClose={() => setEditingVolunteer(null)}
+                    onSuccess={() => {
+                        setEditingVolunteer(null);
+                        refreshData();
+                    }}
+                />
+            )}
         </div>
     );
 }
@@ -384,27 +399,13 @@ function VolunteerCard({
                     {/* Actions */}
                     <div className="flex gap-2 pt-2">
                         <button
-                            onClick={onToggleAvailability}
-                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold ${volunteer.available
-                                ? "bg-amber-500/20 text-amber-400"
-                                : "bg-emerald-500/20 text-emerald-400"
-                                }`}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onEdit();
+                            }}
+                            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold bg-zinc-800 text-zinc-300 hover:text-white transition-colors border border-zinc-700"
                         >
-                            {volunteer.available ? (
-                                <>
-                                    <ToggleRight className="h-4 w-4" /> Set Unavailable
-                                </>
-                            ) : (
-                                <>
-                                    <ToggleLeft className="h-4 w-4" /> Set Available
-                                </>
-                            )}
-                        </button>
-                        <button
-                            onClick={onDelete}
-                            className="px-4 py-2.5 bg-red-500/20 text-red-400 rounded-xl"
-                        >
-                            <Trash2 className="h-4 w-4" />
+                            <Edit2 className="h-4 w-4" /> Edit Profile
                         </button>
                     </div>
                 </div>
@@ -446,6 +447,7 @@ function AddVolunteerModal({
 }) {
     const [phone, setPhone] = useState("");
     const [name, setName] = useState("");
+    const [pin, setPin] = useState("");
     const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -460,6 +462,11 @@ function AddVolunteerModal({
             return;
         }
 
+        if (pin && pin.length !== 4) {
+            toast.error("PIN must be 4 digits");
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             const res = await fetch("/api/admin/volunteers", {
@@ -467,7 +474,7 @@ function AddVolunteerModal({
                 headers: {
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify({ phone, name: name || undefined, areas: selectedAreas })
+                body: JSON.stringify({ phone, name: name || undefined, areas: selectedAreas, pin: pin || undefined })
             });
 
             if (res.ok) {
@@ -525,7 +532,7 @@ function AddVolunteerModal({
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-xs font-bold text-zinc-500 uppercase">Name (for new users)</label>
+                        <label className="text-xs font-bold text-zinc-500 uppercase">Name *</label>
                         <input
                             type="text"
                             value={name}
@@ -533,6 +540,20 @@ function AddVolunteerModal({
                             placeholder="Full name"
                             className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                         />
+                    </div>
+
+                    <div className="space-y-4 pt-2">
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-zinc-500 uppercase flex items-center gap-2">
+                                <Lock className="h-3 w-3" /> Create 4-Digit PIN
+                            </label>
+                            <div className="flex justify-start">
+                                <PinInput value={pin} onChange={setPin} />
+                            </div>
+                            <p className="text-[10px] text-zinc-500">
+                                Required for new users to log in. Already existing users keep their own PIN.
+                            </p>
+                        </div>
                     </div>
 
                     <div className="space-y-2">
@@ -562,6 +583,136 @@ function AddVolunteerModal({
                         className="w-full py-4 bg-emerald-500 text-black font-black rounded-2xl disabled:opacity-50"
                     >
                         {isSubmitting ? "Adding..." : "Add Volunteer"}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// Edit Volunteer Modal
+function EditVolunteerModal({
+    volunteer,
+    onClose,
+    onSuccess
+}: {
+    volunteer: VolunteerData;
+    onClose: () => void;
+    onSuccess: () => void;
+}) {
+    const [name, setName] = useState(volunteer.name);
+    const [phone, setPhone] = useState(volunteer.phone);
+    const [pin, setPin] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleSubmit = async () => {
+        if (!name.trim() || !phone.trim()) {
+            toast.error("Name and Phone are required");
+            return;
+        }
+
+        if (phone.length !== 10 || !/^\d+$/.test(phone)) {
+            toast.error("Phone must be 10 digits");
+            return;
+        }
+
+        if (pin && pin.length !== 4) {
+            toast.error("PIN must be 4 digits");
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            const res = await fetch("/api/admin/users", {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    userId: volunteer.userId,
+                    name,
+                    phone,
+                    pin: pin || undefined
+                })
+            });
+
+            if (res.ok) {
+                toast.success("Volunteer updated");
+                onSuccess();
+            } else {
+                const data = await res.json();
+                toast.error(data.error || "Update failed");
+            }
+        } catch (error) {
+            toast.error("An error occurred");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-300">
+            <div className="w-full sm:max-w-md bg-zinc-950 border border-zinc-800 rounded-t-3xl sm:rounded-3xl flex flex-col max-h-[90vh] overflow-hidden shadow-2xl relative">
+                <div className="sticky top-0 bg-zinc-950 p-4 border-b border-zinc-800 flex items-center justify-between z-20">
+                    <div>
+                        <h3 className="text-lg font-black text-white">Edit Profile</h3>
+                        <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest leading-none mt-1">{volunteer.name}</p>
+                    </div>
+                    <button onClick={onClose} className="p-2 text-zinc-500 hover:text-white">
+                        <X className="h-5 w-5" />
+                    </button>
+                </div>
+
+                <div className="p-4 sm:p-6 overflow-y-auto space-y-6">
+                    <div className="space-y-4">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Name *</label>
+                            <input
+                                type="text"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Phone *</label>
+                            <input
+                                type="tel"
+                                value={phone}
+                                onChange={(e) => {
+                                    const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                                    setPhone(val);
+                                }}
+                                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                            />
+                        </div>
+                        <div className="space-y-2 pt-2 border-t border-zinc-800">
+                            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 flex items-center gap-2">
+                                <Lock className="h-3 w-3" /> Update PIN
+                            </label>
+                            <div className="flex justify-start">
+                                <PinInput value={pin} onChange={setPin} />
+                            </div>
+                            <p className="text-[10px] text-zinc-600 mt-1 italic">
+                                Leave blank to keep current PIN
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="sticky bottom-0 bg-zinc-950 p-4 border-t border-zinc-800 flex gap-3 z-20">
+                    <button
+                        onClick={onClose}
+                        className="flex-1 py-4 bg-zinc-900 text-zinc-400 font-bold rounded-2xl hover:text-white transition-colors text-xs uppercase tracking-widest"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={handleSubmit}
+                        disabled={isSubmitting}
+                        className="flex-[1.5] py-4 bg-emerald-500 text-black font-black rounded-2xl disabled:opacity-50 hover:bg-emerald-400 transition-colors text-xs uppercase tracking-widest"
+                    >
+                        {isSubmitting ? "Saving..." : "Save Changes"}
                     </button>
                 </div>
             </div>

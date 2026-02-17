@@ -38,7 +38,10 @@ export function StatusCard({
 
         switch (season) {
             case "PRE_SEASON":
-                return "Awaiting Ramadan. Estimated: Feb 18 (Subject to moon sighting)";
+                const fallbackDate = config?.officialStartDate
+                    ? new Date(config.officialStartDate).toLocaleDateString("en-IN", { month: "short", day: "numeric" })
+                    : "Feb 19";
+                return `Awaiting Ramadan. Estimated: ${fallbackDate} (Subject to moon sighting)`;
             case "POST_SEASON":
                 return "Ramadan 1447 has ended. JazakAllah!";
             default:

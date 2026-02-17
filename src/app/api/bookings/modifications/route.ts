@@ -77,7 +77,7 @@ export async function POST(req: Request) {
         parsedDate.setHours(0, 0, 0, 0); // Normalize to start of day
 
         // --- 2 AM CUTOFF LOGIC ---
-        const { targetDate } = await getDeliveryWindow();
+        const { targetDate } = getDeliveryWindow();
         const nowIST = DateTime.now().setZone("Asia/Kolkata");
         const modificationDateLuxon = DateTime.fromJSDate(parsedDate).setZone("Asia/Kolkata").startOf("day");
 
@@ -165,7 +165,7 @@ export async function DELETE(req: Request) {
         }
 
         // --- 2 AM CUTOFF LOGIC ---
-        const { targetDate } = await getDeliveryWindow();
+        const { targetDate } = getDeliveryWindow();
         const nowIST = DateTime.now().setZone("Asia/Kolkata");
         const modificationDateLuxon = DateTime.fromJSDate(modification.date).setZone("Asia/Kolkata").startOf("day");
 

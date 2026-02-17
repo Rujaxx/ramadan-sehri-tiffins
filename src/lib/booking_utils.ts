@@ -17,7 +17,7 @@ interface Modification {
  * Handles recurring vs one-time logic and modifications.
  */
 export function calculateEffectiveTiffins(
-    booking: Booking,
+    booking: Booking | { tiffinCount: number, startDate: Date, endDate: Date, type: "ONE_TIME" | "RECURRING" },
     mod: Modification | undefined,
     targetDate: DateTime
 ): number {

@@ -26,7 +26,7 @@ export async function GET(req: Request) {
         const cursor = searchParams.get("cursor");
 
         // Calculate target delivery date
-        const { targetDate, displayLabel, displayDate } = await getDeliveryWindow();
+        const { targetDate } = getDeliveryWindow();
         const targetDateStartJS = targetDate.startOf("day").toJSDate();
         const targetDateEndJS = targetDate.endOf("day").toJSDate();
         const dayAfterJS = targetDate.plus({ days: 1 }).startOf("day").toJSDate();
@@ -89,8 +89,9 @@ export async function GET(req: Request) {
                     }
                 }
             },
-            orderBy: { id: "asc" } // Cursor pagination requires stable sort
+            orderBy: { user: { area: "asc" } } // Cursor pagination requires stable sort
         });
+
 
         const hasNextPage = bookings.length > limit;
         const bookingsToReturn = hasNextPage ? bookings.slice(0, limit) : bookings;
@@ -118,10 +119,41 @@ export async function GET(req: Request) {
         });
 
         // Get areas for filter dropdown (if it's the first page)
-        let areaList: string[] = [];
+        let areaList: { name: string, count: number }[] = [];
         if (!cursor) {
+            const areaWiseBookings = await db.booking.findMany({
+                where: whereClause,
+                select: {
+                    user: {
+                        select: {
+                            area: true
+                        }
+                    },
+                    modifications: {
+                        where: {
+                            date: {
+                                gte: targetDateStartJS,
+                                lt: dayAfterJS
+                            }
+                        }
+                    },
+                    startDate: true,
+                    endDate: true,
+                    type: true,
+                    tiffinCount: true,
+                }
+            });
+            const mappAreaWiseCount = new Map()
+            areaWiseBookings.forEach(booking => {
+                const mod = booking.modifications[0];
+                const todayTiffinCount = calculateEffectiveTiffins(booking, mod, targetDate);
+                mappAreaWiseCount.set(booking.user.area, (mappAreaWiseCount.get(booking.user.area) || 0) + todayTiffinCount);
+            });
             const dbAreas = await db.area.findMany({ select: { name: true } });
-            areaList = dbAreas.map(a => a.name);
+            areaList = dbAreas.map(a => {
+                const count = mappAreaWiseCount.get(a.name) || 0;
+                return { name: a.name, count };
+            });
         }
 
         return NextResponse.json({
@@ -261,32 +293,7 @@ export async function PATCH(req: Request) {
 
             case "cancelToday":
                 // Cancel for specific date (creates modification)
-                const configCancel = await db.globalConfig.findUnique({ where: { id: "singleton" } });
-                const nowCancel = DateTime.now().setZone("Asia/Kolkata");
-
-                const realTargetDateCancel = nowCancel.hour >= 6
-                    ? nowCancel.plus({ days: 1 }).startOf("day")
-                    : nowCancel.startOf("day");
-
-                let targetDateCancel: DateTime;
-                if (configCancel?.ramadanStarted) {
-                    const officialStart = configCancel.officialStartDate
-                        ? DateTime.fromJSDate(configCancel.officialStartDate).setZone("Asia/Kolkata").startOf("day")
-                        : null;
-
-                    if (officialStart && realTargetDateCancel < officialStart) {
-                        targetDateCancel = officialStart;
-                    } else {
-                        targetDateCancel = realTargetDateCancel;
-                    }
-                } else {
-                    // Onboarding phase
-                    if (configCancel?.officialStartDate) {
-                        targetDateCancel = DateTime.fromJSDate(configCancel.officialStartDate).setZone("Asia/Kolkata").startOf("day");
-                    } else {
-                        targetDateCancel = DateTime.fromObject({ year: 2026, month: 2, day: 18 }, { zone: "Asia/Kolkata" }).startOf("day");
-                    }
-                }
+                const { targetDate: targetDateCancel } = getDeliveryWindow();
 
                 await db.bookingModification.upsert({
                     where: {
@@ -315,32 +322,7 @@ export async function PATCH(req: Request) {
 
             case "restoreToday":
                 // Remove cancellation for specific date
-                const configRestore = await db.globalConfig.findUnique({ where: { id: "singleton" } });
-                const nowRestore = DateTime.now().setZone("Asia/Kolkata");
-
-                const realRestoreDate = nowRestore.hour >= 6
-                    ? nowRestore.plus({ days: 1 }).startOf("day")
-                    : nowRestore.startOf("day");
-
-                let restoreDate: DateTime;
-                if (configRestore?.ramadanStarted) {
-                    const officialStart = configRestore.officialStartDate
-                        ? DateTime.fromJSDate(configRestore.officialStartDate).setZone("Asia/Kolkata").startOf("day")
-                        : null;
-
-                    if (officialStart && realRestoreDate < officialStart) {
-                        restoreDate = officialStart;
-                    } else {
-                        restoreDate = realRestoreDate;
-                    }
-                } else {
-                    // Onboarding phase
-                    if (configRestore?.officialStartDate) {
-                        restoreDate = DateTime.fromJSDate(configRestore.officialStartDate).setZone("Asia/Kolkata").startOf("day");
-                    } else {
-                        restoreDate = DateTime.fromObject({ year: 2026, month: 2, day: 18 }, { zone: "Asia/Kolkata" }).startOf("day");
-                    }
-                }
+                const { targetDate: restoreDate } = getDeliveryWindow();
 
                 await db.bookingModification.deleteMany({
                     where: {
@@ -352,32 +334,7 @@ export async function PATCH(req: Request) {
 
             case "modifyTodayCount":
                 // Change tiffin count for specific date only
-                const configMod = await db.globalConfig.findUnique({ where: { id: "singleton" } });
-                const nowMod = DateTime.now().setZone("Asia/Kolkata");
-
-                const realModDate = nowMod.hour >= 6
-                    ? nowMod.plus({ days: 1 }).startOf("day")
-                    : nowMod.startOf("day");
-
-                let modDate: DateTime;
-                if (configMod?.ramadanStarted) {
-                    const officialStart = configMod.officialStartDate
-                        ? DateTime.fromJSDate(configMod.officialStartDate).setZone("Asia/Kolkata").startOf("day")
-                        : null;
-
-                    if (officialStart && realModDate < officialStart) {
-                        modDate = officialStart;
-                    } else {
-                        modDate = realModDate;
-                    }
-                } else {
-                    // Onboarding phase
-                    if (configMod?.officialStartDate) {
-                        modDate = DateTime.fromJSDate(configMod.officialStartDate).setZone("Asia/Kolkata").startOf("day");
-                    } else {
-                        modDate = DateTime.fromObject({ year: 2026, month: 2, day: 18 }, { zone: "Asia/Kolkata" }).startOf("day");
-                    }
-                }
+                const { targetDate: modDate } = getDeliveryWindow();
 
                 await db.bookingModification.upsert({
                     where: {

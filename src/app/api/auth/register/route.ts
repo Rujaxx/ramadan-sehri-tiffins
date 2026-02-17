@@ -27,7 +27,7 @@ export async function POST(req: Request) {
             where: { id: "singleton" }
         });
 
-        const { targetDate: serverTargetDate } = await getDeliveryWindow();
+        const { targetDate: serverTargetDate } = getDeliveryWindow();
 
         let bookingStartDate: Date;
         let bookingEndDate: Date;

@@ -384,7 +384,7 @@ export function RegistrationForm() {
                             <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
                                 <div className="text-center mb-4">
                                     <h3 className="text-lg font-semibold">How long do you need tiffins?</h3>
-                                    <p className="text-sm text-muted-foreground">Choose your booking duration</p>
+                                    <p className="text-zinc-500 text-sm mt-1">Estimated starts Feb 19 (Subject to moon sighting)</p>
                                 </div>
 
                                 <FormField
