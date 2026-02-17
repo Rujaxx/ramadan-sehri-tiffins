@@ -78,20 +78,26 @@ export function RegistrationForm() {
         start: new Date(RAMADAN_START_DATE + "T00:00:00"),
         end: new Date(RAMADAN_END_DATE + "T00:00:00"),
     });
+    const [serverTargetDate, setServerTargetDate] = useState<string | null>(null);
     const router = useRouter();
     const { login } = useAuth();
 
-    // Fetch dynamic start date from global config
+    // Fetch dynamic start date and target date from global config
     useEffect(() => {
         const fetchConfig = async () => {
             try {
                 const res = await fetch("/api/config");
                 if (res.ok) {
                     const data = await res.json();
+                    if (data.targetDate) {
+                        setServerTargetDate(data.targetDate);
+                    }
                     if (data.officialStartDate) {
+                        // Normalize to local midnight to avoid timezone issues
+                        const datePart = data.officialStartDate.split('T')[0];
                         setRamadanDates(prev => ({
                             ...prev,
-                            start: new Date(data.officialStartDate)
+                            start: new Date(datePart + "T00:00:00")
                         }));
                     }
                 }
@@ -490,11 +496,18 @@ export function RegistrationForm() {
                                                                         field.onChange(`${year}-${month}-${day}`);
                                                                     }
                                                                 }}
-                                                                disabled={(date) =>
-                                                                    date < ramadanDates.start ||
-                                                                    date > ramadanDates.end ||
-                                                                    (!!form.watch("endDate") && date > new Date(form.watch("endDate") + "T00:00:00"))
-                                                                }
+                                                                disabled={(date) => {
+                                                                    const dateStr = format(date, "yyyy-MM-dd");
+                                                                    const startStr = format(ramadanDates.start, "yyyy-MM-dd");
+                                                                    const endStr = format(ramadanDates.end, "yyyy-MM-dd");
+                                                                    const formEndDate = form.watch("endDate");
+                                                                    const serverTargetStr = serverTargetDate ? serverTargetDate.split('T')[0] : startStr;
+
+                                                                    return dateStr < startStr ||
+                                                                        dateStr > endStr ||
+                                                                        dateStr < serverTargetStr ||
+                                                                        (!!formEndDate && dateStr > formEndDate);
+                                                                }}
                                                                 initialFocus
                                                             />
                                                         </PopoverContent>
@@ -541,11 +554,18 @@ export function RegistrationForm() {
                                                                         field.onChange(`${year}-${month}-${day}`);
                                                                     }
                                                                 }}
-                                                                disabled={(date) =>
-                                                                    date < ramadanDates.start ||
-                                                                    date > ramadanDates.end ||
-                                                                    (!!form.watch("startDate") && date < new Date(form.watch("startDate") + "T00:00:00"))
-                                                                }
+                                                                disabled={(date) => {
+                                                                    const dateStr = format(date, "yyyy-MM-dd");
+                                                                    const startStr = format(ramadanDates.start, "yyyy-MM-dd");
+                                                                    const endStr = format(ramadanDates.end, "yyyy-MM-dd");
+                                                                    const formStartDate = form.watch("startDate");
+                                                                    const serverTargetStr = serverTargetDate ? serverTargetDate.split('T')[0] : startStr;
+
+                                                                    return dateStr < startStr ||
+                                                                        dateStr > endStr ||
+                                                                        dateStr < serverTargetStr ||
+                                                                        (!!formStartDate && dateStr < formStartDate);
+                                                                }}
                                                                 initialFocus
                                                             />
                                                         </PopoverContent>

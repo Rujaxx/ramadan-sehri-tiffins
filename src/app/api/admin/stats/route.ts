@@ -63,6 +63,9 @@ export async function GET(req: Request) {
         let totalTiffinsToday = 0;
         let todayCancellations = 0;
 
+        const targetDateStartJS = targetDate.startOf("day").toJSDate();
+        const targetDateEndJS = targetDate.endOf("day").toJSDate();
+
         const areaBreakdown = await Promise.all(areas.map(async (area) => {
             // Get all users in this area with active bookings covering the target date
             const areaUsers = await db.user.findMany({
@@ -73,14 +76,14 @@ export async function GET(req: Request) {
                             status: "ACTIVE",
                             OR: [
                                 {
-                                    startDate: { lte: windowEndJS },
-                                    endDate: { gte: windowStartJS }
+                                    startDate: { lte: targetDateEndJS },
+                                    endDate: { gte: targetDateStartJS }
                                 },
                                 {
                                     modifications: {
                                         some: {
                                             date: {
-                                                gte: targetDate.startOf("day").toJSDate(),
+                                                gte: targetDateStartJS,
                                                 lt: targetDate.plus({ days: 1 }).startOf("day").toJSDate()
                                             }
                                         }
@@ -92,7 +95,7 @@ export async function GET(req: Request) {
                             modifications: {
                                 where: {
                                     date: {
-                                        gte: targetDate.startOf("day").toJSDate(),
+                                        gte: targetDateStartJS,
                                         lt: targetDate.plus({ days: 1 }).startOf("day").toJSDate()
                                     }
                                 }
@@ -121,9 +124,9 @@ export async function GET(req: Request) {
             totalTiffinsToday += areaTiffins;
             todayCancellations += areaCancellations;
 
-            // Count new users (created in last 24h)
-            const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-            const newUsersInArea = areaUsers.filter(u => u.createdAt > oneDayAgo).length;
+            // Count new users (created since start of today IST)
+            const sinceStartOfToday = targetDate.startOf("day").toJSDate();
+            const newUsersInArea = areaUsers.filter(u => u.createdAt >= sinceStartOfToday).length;
 
             return {
                 area: area.name,

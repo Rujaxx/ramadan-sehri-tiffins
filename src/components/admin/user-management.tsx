@@ -16,8 +16,10 @@ import {
     X,
     ChevronDown,
     Copy,
-    MoreVertical
+    MoreVertical,
+    Calendar
 } from "lucide-react";
+import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
     Table,
@@ -51,6 +53,8 @@ interface User {
     verified: boolean;
     bookings: {
         tiffinCount: number;
+        startDate: string;
+        endDate: string;
     }[];
 }
 
@@ -360,6 +364,14 @@ export function UserManagement({ defaultFilter }: { defaultFilter?: boolean | nu
 
                                                 {/* TOP RIGHT: Global Stats & Status */}
                                                 <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2">
+                                                    {user.bookings[0] && (
+                                                        <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-2 py-1 rounded-lg">
+                                                            <Calendar className="h-3.5 w-3.5 text-amber-500" />
+                                                            <span className="text-[10px] font-black text-amber-500/90 leading-none">
+                                                                {format(new Date(user.bookings[0].startDate), "dd MMM")} - {format(new Date(user.bookings[0].endDate), "dd MMM")}
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                     <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-2 py-1 rounded-lg">
                                                         <Utensils className="h-3.5 w-3.5 text-emerald-500" />
                                                         <span className="text-base font-black text-white leading-none">{user.bookings[0]?.tiffinCount || 0}</span>
@@ -430,7 +442,6 @@ export function UserManagement({ defaultFilter }: { defaultFilter?: boolean | nu
                                                     )}
                                                 </div>
 
-
                                             </div>
                                         </div>
                                     ))}
@@ -441,32 +452,33 @@ export function UserManagement({ defaultFilter }: { defaultFilter?: boolean | nu
             </Card>
 
             {/* Advanced Edit Modal - Matches Bookings Edit Design */}
-            {editingUser && (
-                <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-300">
-                    <div className="w-full sm:max-w-md bg-zinc-950 border border-zinc-800 rounded-t-3xl sm:rounded-3xl flex flex-col max-h-[90vh] overflow-hidden shadow-2xl relative">
-                        {/* Decorative background glow (subtle) */}
-                        <div className="absolute -top-24 -left-24 w-48 h-48 bg-emerald-500/5 blur-[100px] pointer-events-none" />
-                        <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-cyan-500/5 blur-[100px] pointer-events-none" />
+            {
+                editingUser && (
+                    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-300">
+                        <div className="w-full sm:max-w-md bg-zinc-950 border border-zinc-800 rounded-t-3xl sm:rounded-3xl flex flex-col max-h-[90vh] overflow-hidden shadow-2xl relative">
+                            {/* Decorative background glow (subtle) */}
+                            <div className="absolute -top-24 -left-24 w-48 h-48 bg-emerald-500/5 blur-[100px] pointer-events-none" />
+                            <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-cyan-500/5 blur-[100px] pointer-events-none" />
 
-                        {/* Top Bar / Header */}
-                        <div className="sticky top-0 bg-zinc-950/80 backdrop-blur-md p-4 border-b border-zinc-800 flex items-center justify-between z-20">
-                            {/* Mobile Drag Handle */}
-                            <div className="sm:hidden absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1 bg-zinc-800 rounded-full" />
-                            <div className="mt-2 sm:mt-0">
-                                <h3 className="text-lg font-black text-white">Edit Profile</h3>
-                                <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">{editingUser.name}</p>
+                            {/* Top Bar / Header */}
+                            <div className="sticky top-0 bg-zinc-950/80 backdrop-blur-md p-4 border-b border-zinc-800 flex items-center justify-between z-20">
+                                {/* Mobile Drag Handle */}
+                                <div className="sm:hidden absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1 bg-zinc-800 rounded-full" />
+                                <div className="mt-2 sm:mt-0">
+                                    <h3 className="text-lg font-black text-white">Edit Profile</h3>
+                                    <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">{editingUser.name}</p>
+                                </div>
+                                <button
+                                    onClick={() => setEditingUser(null)}
+                                    className="h-10 w-10 flex items-center justify-center text-zinc-500 hover:text-white mt-2 sm:mt-0"
+                                >
+                                    <X className="h-5 w-5" />
+                                </button>
                             </div>
-                            <button
-                                onClick={() => setEditingUser(null)}
-                                className="h-10 w-10 flex items-center justify-center text-zinc-500 hover:text-white mt-2 sm:mt-0"
-                            >
-                                <X className="h-5 w-5" />
-                            </button>
-                        </div>
 
-                        {/* Scrollable Content Area */}
-                        <div className="p-4 sm:p-6 overflow-y-auto custom-scrollbar flex-1 space-y-6">
-                            <style jsx>{`
+                            {/* Scrollable Content Area */}
+                            <div className="p-4 sm:p-6 overflow-y-auto custom-scrollbar flex-1 space-y-6">
+                                <style jsx>{`
                                 .custom-scrollbar::-webkit-scrollbar {
                                     width: 4px;
                                 }
@@ -479,168 +491,169 @@ export function UserManagement({ defaultFilter }: { defaultFilter?: boolean | nu
                                 }
                             `}</style>
 
-                            {/* Section: Identity */}
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-2">
-                                    <div className="h-1 w-4 bg-emerald-500 rounded-full" />
-                                    <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Identity</h4>
-                                </div>
-                                <div className="grid grid-cols-1 gap-4">
-                                    <div className="space-y-1.5">
-                                        <label className="text-[9px] font-bold text-zinc-500 ml-1 uppercase">Name *</label>
-                                        <input
-                                            type="text"
-                                            value={editForm.name || ""}
-                                            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                                            className="w-full bg-zinc-900/50 border border-zinc-800 focus:border-emerald-500/50 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all"
-                                        />
+                                {/* Section: Identity */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-1 w-4 bg-emerald-500 rounded-full" />
+                                        <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Identity</h4>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-1 gap-4">
                                         <div className="space-y-1.5">
-                                            <label className="text-[9px] font-bold text-zinc-500 ml-1 uppercase">Phone *</label>
+                                            <label className="text-[9px] font-bold text-zinc-500 ml-1 uppercase">Name *</label>
                                             <input
                                                 type="text"
-                                                value={editForm.phone || ""}
-                                                onChange={(e) => {
-                                                    const val = e.target.value.replace(/\D/g, "").slice(0, 10);
-                                                    setEditForm({ ...editForm, phone: val });
-                                                }}
-                                                className="w-full bg-zinc-900/50 border border-zinc-800 focus:border-emerald-500/50 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all font-mono"
+                                                value={editForm.name || ""}
+                                                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                                                className="w-full bg-zinc-900/50 border border-zinc-800 focus:border-emerald-500/50 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all"
                                             />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="space-y-1.5">
+                                                <label className="text-[9px] font-bold text-zinc-500 ml-1 uppercase">Phone *</label>
+                                                <input
+                                                    type="text"
+                                                    value={editForm.phone || ""}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                                                        setEditForm({ ...editForm, phone: val });
+                                                    }}
+                                                    className="w-full bg-zinc-900/50 border border-zinc-800 focus:border-emerald-500/50 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all font-mono"
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-[9px] font-bold text-zinc-500 ml-1 uppercase">Alt Phone</label>
+                                                <input
+                                                    type="text"
+                                                    value={editForm.alternatePhone || ""}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                                                        setEditForm({ ...editForm, alternatePhone: val });
+                                                    }}
+                                                    className="w-full bg-zinc-900/50 border border-zinc-800 focus:border-emerald-500/50 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all font-mono"
+                                                />
+                                            </div>
                                         </div>
                                         <div className="space-y-1.5">
-                                            <label className="text-[9px] font-bold text-zinc-500 ml-1 uppercase">Alt Phone</label>
-                                            <input
-                                                type="text"
-                                                value={editForm.alternatePhone || ""}
-                                                onChange={(e) => {
-                                                    const val = e.target.value.replace(/\D/g, "").slice(0, 10);
-                                                    setEditForm({ ...editForm, alternatePhone: val });
-                                                }}
-                                                className="w-full bg-zinc-900/50 border border-zinc-800 focus:border-emerald-500/50 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all font-mono"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <label className="text-[9px] font-bold text-zinc-500 ml-1 uppercase">Area *</label>
-                                        <div className="relative">
-                                            <select
-                                                value={editForm.area || ""}
-                                                onChange={(e) => setEditForm({ ...editForm, area: e.target.value })}
-                                                className="w-full bg-zinc-900/50 border border-zinc-800 focus:border-emerald-500/50 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all appearance-none"
-                                            >
-                                                <option value="" disabled>Select Area</option>
-                                                {RAMADAN_AREAS.map((area) => (
-                                                    <option key={area} value={area}>{area}</option>
-                                                ))}
-                                            </select>
-                                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
-                                                <ChevronDown className="h-4 w-4" />
+                                            <label className="text-[9px] font-bold text-zinc-500 ml-1 uppercase">Area *</label>
+                                            <div className="relative">
+                                                <select
+                                                    value={editForm.area || ""}
+                                                    onChange={(e) => setEditForm({ ...editForm, area: e.target.value })}
+                                                    className="w-full bg-zinc-900/50 border border-zinc-800 focus:border-emerald-500/50 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all appearance-none"
+                                                >
+                                                    <option value="" disabled>Select Area</option>
+                                                    {RAMADAN_AREAS.map((area) => (
+                                                        <option key={area} value={area}>{area}</option>
+                                                    ))}
+                                                </select>
+                                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
+                                                    <ChevronDown className="h-4 w-4" />
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            {/* Section: Logistics */}
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-2">
-                                    <div className="h-1 w-4 bg-cyan-500 rounded-full" />
-                                    <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Logistics</h4>
-                                </div>
+                                {/* Section: Logistics */}
                                 <div className="space-y-4">
-                                    <div className="space-y-1.5">
-                                        <label className="text-[9px] font-bold text-zinc-500 ml-1 uppercase">Full Address *</label>
-                                        <textarea
-                                            value={editForm.address || ""}
-                                            onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-                                            rows={2}
-                                            className="w-full bg-zinc-900/50 border border-zinc-800 focus:border-cyan-500/50 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all resize-none"
-                                        />
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-1 w-4 bg-cyan-500 rounded-full" />
+                                        <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Logistics</h4>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-4">
                                         <div className="space-y-1.5">
-                                            <label className="text-[9px] font-bold text-zinc-500 ml-1 uppercase">Landmark</label>
-                                            <input
-                                                type="text"
-                                                value={editForm.landmark || ""}
-                                                onChange={(e) => setEditForm({ ...editForm, landmark: e.target.value })}
-                                                className="w-full bg-zinc-900/50 border border-zinc-800 focus:border-cyan-500/50 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all"
+                                            <label className="text-[9px] font-bold text-zinc-500 ml-1 uppercase">Full Address *</label>
+                                            <textarea
+                                                value={editForm.address || ""}
+                                                onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                                                rows={2}
+                                                className="w-full bg-zinc-900/50 border border-zinc-800 focus:border-cyan-500/50 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all resize-none"
                                             />
                                         </div>
-                                        <div className="space-y-1.5">
-                                            <label className="text-[9px] font-bold text-zinc-500 ml-1 uppercase">New Login PIN</label>
-                                            <input
-                                                type="text"
-                                                inputMode="numeric"
-                                                pattern="[0-9]*"
-                                                maxLength={4}
-                                                value={editForm.pin || ""}
-                                                onChange={(e) => {
-                                                    const val = e.target.value.replace(/\D/g, "");
-                                                    setEditForm({ ...editForm, pin: val });
-                                                }}
-                                                placeholder="4-digit code"
-                                                className="w-full bg-zinc-900/50 border border-zinc-800 focus:border-cyan-500/50 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all font-mono placeholder:text-[10px]"
-                                            />
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="space-y-1.5">
+                                                <label className="text-[9px] font-bold text-zinc-500 ml-1 uppercase">Landmark</label>
+                                                <input
+                                                    type="text"
+                                                    value={editForm.landmark || ""}
+                                                    onChange={(e) => setEditForm({ ...editForm, landmark: e.target.value })}
+                                                    className="w-full bg-zinc-900/50 border border-zinc-800 focus:border-cyan-500/50 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all"
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-[9px] font-bold text-zinc-500 ml-1 uppercase">New Login PIN</label>
+                                                <input
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    pattern="[0-9]*"
+                                                    maxLength={4}
+                                                    value={editForm.pin || ""}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value.replace(/\D/g, "");
+                                                        setEditForm({ ...editForm, pin: val });
+                                                    }}
+                                                    placeholder="4-digit code"
+                                                    className="w-full bg-zinc-900/50 border border-zinc-800 focus:border-cyan-500/50 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all font-mono placeholder:text-[10px]"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Section: Service */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-1 w-4 bg-amber-500 rounded-full" />
+                                        <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Service</h4>
+                                    </div>
+                                    <div className="p-4 py-6 rounded-2xl bg-zinc-900/30 border border-zinc-800/50 flex flex-col items-center justify-center gap-4">
+                                        <div className="text-center">
+                                            <p className="text-sm font-black text-white">Base Subscription</p>
+                                            <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">Daily Tiffin Units</p>
+                                        </div>
+
+                                        <div className="flex items-center gap-8">
+                                            <button
+                                                onClick={() => setNewTiffinCount(Math.max(1, newTiffinCount - 1))}
+                                                className="w-14 h-14 rounded-2xl bg-zinc-800 text-2xl font-bold hover:bg-zinc-700 active:scale-95 transition-all text-white"
+                                            >
+                                                -
+                                            </button>
+                                            <div className="flex flex-col items-center">
+                                                <span className="text-5xl font-black text-white tabular-nums">{newTiffinCount}</span>
+                                                <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest -mt-1">Units</span>
+                                            </div>
+                                            <button
+                                                onClick={() => setNewTiffinCount(newTiffinCount + 1)}
+                                                className="w-14 h-14 rounded-2xl bg-zinc-800 text-2xl font-bold hover:bg-zinc-700 active:scale-95 transition-all text-white"
+                                            >
+                                                +
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Section: Service */}
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-2">
-                                    <div className="h-1 w-4 bg-amber-500 rounded-full" />
-                                    <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Service</h4>
-                                </div>
-                                <div className="p-4 py-6 rounded-2xl bg-zinc-900/30 border border-zinc-800/50 flex flex-col items-center justify-center gap-4">
-                                    <div className="text-center">
-                                        <p className="text-sm font-black text-white">Base Subscription</p>
-                                        <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">Daily Tiffin Units</p>
-                                    </div>
-
-                                    <div className="flex items-center gap-8">
-                                        <button
-                                            onClick={() => setNewTiffinCount(Math.max(1, newTiffinCount - 1))}
-                                            className="w-14 h-14 rounded-2xl bg-zinc-800 text-2xl font-bold hover:bg-zinc-700 active:scale-95 transition-all text-white"
-                                        >
-                                            -
-                                        </button>
-                                        <div className="flex flex-col items-center">
-                                            <span className="text-5xl font-black text-white tabular-nums">{newTiffinCount}</span>
-                                            <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest -mt-1">Units</span>
-                                        </div>
-                                        <button
-                                            onClick={() => setNewTiffinCount(newTiffinCount + 1)}
-                                            className="w-14 h-14 rounded-2xl bg-zinc-800 text-2xl font-bold hover:bg-zinc-700 active:scale-95 transition-all text-white"
-                                        >
-                                            +
-                                        </button>
-                                    </div>
-                                </div>
+                            {/* Sticky Bottom Actions */}
+                            <div className="sticky bottom-0 bg-zinc-950 p-4 border-t border-zinc-800 flex gap-3 z-20">
+                                <button
+                                    onClick={() => setEditingUser(null)}
+                                    className="flex-1 py-4 bg-zinc-900 text-zinc-400 font-bold rounded-2xl hover:text-white transition-colors text-xs uppercase tracking-widest"
+                                >
+                                    Discard
+                                </button>
+                                <button
+                                    onClick={handleUpdateUser}
+                                    disabled={isUpdating}
+                                    className="flex-[1.5] py-4 bg-emerald-500 text-black font-black rounded-2xl disabled:opacity-50 hover:bg-emerald-400 transition-colors text-xs uppercase tracking-widest"
+                                >
+                                    {isUpdating ? "Saving..." : "Commit"}
+                                </button>
                             </div>
-                        </div>
-
-                        {/* Sticky Bottom Actions */}
-                        <div className="sticky bottom-0 bg-zinc-950 p-4 border-t border-zinc-800 flex gap-3 z-20">
-                            <button
-                                onClick={() => setEditingUser(null)}
-                                className="flex-1 py-4 bg-zinc-900 text-zinc-400 font-bold rounded-2xl hover:text-white transition-colors text-xs uppercase tracking-widest"
-                            >
-                                Discard
-                            </button>
-                            <button
-                                onClick={handleUpdateUser}
-                                disabled={isUpdating}
-                                className="flex-[1.5] py-4 bg-emerald-500 text-black font-black rounded-2xl disabled:opacity-50 hover:bg-emerald-400 transition-colors text-xs uppercase tracking-widest"
-                            >
-                                {isUpdating ? "Saving..." : "Commit"}
-                            </button>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
         </>
     );
 }

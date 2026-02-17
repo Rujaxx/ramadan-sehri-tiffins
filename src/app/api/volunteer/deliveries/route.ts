@@ -30,23 +30,25 @@ export async function GET(req: Request) {
         const query = searchParams.get("query") || "";
 
         const { targetDate, windowStart, windowEnd } = await getDeliveryWindow();
-        const targetDateJS = targetDate.toJSDate();
-        const dayAfterJS = targetDate.plus({ days: 1 }).toJSDate();
+        const targetDateStartJS = targetDate.startOf("day").toJSDate();
+        const targetDateEndJS = targetDate.endOf("day").toJSDate();
+        const dayAfterJS = targetDate.plus({ days: 1 }).startOf("day").toJSDate();
         const windowStartJS = windowStart.toJSDate();
         const windowEndJS = windowEnd.toJSDate();
+
         // 1. Fetch bookings in volunteer's areas
         const whereClause: any = {
             status: "ACTIVE",
             OR: [
                 {
-                    startDate: { lte: targetDateJS },
-                    endDate: { gte: targetDateJS }
+                    startDate: { lte: targetDateEndJS },
+                    endDate: { gte: targetDateStartJS }
                 },
                 {
                     modifications: {
                         some: {
                             date: {
-                                gte: targetDateJS,
+                                gte: targetDateStartJS,
                                 lt: dayAfterJS
                             }
                         }
@@ -78,7 +80,7 @@ export async function GET(req: Request) {
             whereClause.modifications = {
                 none: {
                     date: {
-                        gte: targetDateJS,
+                        gte: targetDateStartJS,
                         lt: dayAfterJS
                     },
                     cancelled: true
@@ -97,7 +99,7 @@ export async function GET(req: Request) {
             whereClause.modifications = {
                 none: {
                     date: {
-                        gte: targetDateJS,
+                        gte: targetDate,
                         lt: dayAfterJS
                     },
                     cancelled: true
@@ -124,7 +126,7 @@ export async function GET(req: Request) {
                 modifications: {
                     where: {
                         date: {
-                            gte: targetDateJS,
+                            gte: targetDateStartJS,
                             lt: dayAfterJS
                         }
                     }

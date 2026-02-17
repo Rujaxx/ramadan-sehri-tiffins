@@ -37,6 +37,7 @@ interface BookingCalendarProps {
     modifications?: BookingModification[];
     onUpdate?: () => void;
     isRecurring?: boolean;
+    config?: any;
 }
 
 // Helper to get YYYY-MM-DD string in local time
@@ -81,7 +82,8 @@ export function BookingCalendar({
     bookingEndDate,
     modifications = [],
     onUpdate,
-    isRecurring = true
+    isRecurring = true,
+    config
 }: BookingCalendarProps) {
     const { token } = useAuth();
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -121,6 +123,13 @@ export function BookingCalendar({
         }
 
         return 0;
+    };
+
+    const isPastDate = (date: Date) => {
+        if (!config?.targetDate) return false;
+        const targetStr = config.targetDate.split('T')[0];
+        const dateStr = toLocalDateString(date);
+        return dateStr < targetStr;
     };
 
     // Initialize pending count when selection changes
@@ -266,11 +275,6 @@ export function BookingCalendar({
         }
     };
 
-    const isPastDate = (date: Date): boolean => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        return date < today;
-    };
 
     return (
         <Card className="premium-card">
@@ -371,121 +375,142 @@ export function BookingCalendar({
                 </div>
 
                 {/* Selected Date Actions */}
-                {selectedDate && !isPastDate(selectedDate) && (
-                    <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-4 animate-in fade-in slide-in-from-bottom-2">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h4 className="font-bold">{getDayName(selectedDate)}</h4>
-                                <p className="text-sm text-muted-foreground">{formatDate(selectedDate)}</p>
-                            </div>
-                            <Button variant="ghost" size="sm" onClick={() => setSelectedDate(null)}>
-                                <X className="h-4 w-4" />
-                            </Button>
-                        </div>
+                {selectedDate && !isPastDate(selectedDate) && (() => {
+                    const dateStr = toLocalDateString(selectedDate);
+                    const targetDateStr = config?.targetDate?.split('T')[0];
+                    const isTodayTarget = targetDateStr === dateStr;
 
-                        {/* Tiffin Count Adjuster */}
-                        <div className="space-y-4 pt-2">
-                            <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-white/5 border border-white/10">
-                                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
-                                    Number of Tiffins
-                                </span>
-                                <div className="flex items-center gap-8">
-                                    <Button
-                                        variant="outline"
-                                        size="icon"
-                                        className="h-12 w-12 rounded-full border-2 border-emerald-500/20 hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all"
-                                        onClick={() => setPendingTiffinCount(prev => Math.max(1, (prev ?? 1) - 1))}
-                                        disabled={isLoading || (pendingTiffinCount ?? 1) <= 1}
-                                    >
-                                        <Minus className="h-6 w-6 text-emerald-400" />
-                                    </Button>
+                    // Simple client-side hour check (assume browser local hour is same as IST for simplicity here, 
+                    // or better, we could have passed server hour)
+                    const isAfterCutoff = isTodayTarget && config?.isAfterCutoff;
 
-                                    <div className="flex flex-col items-center min-w-[4rem]">
-                                        <span className="text-5xl font-black tracking-tighter text-emerald-50">
-                                            {pendingTiffinCount}
-                                        </span>
-                                    </div>
-
-                                    <Button
-                                        variant="outline"
-                                        size="icon"
-                                        className="h-12 w-12 rounded-full border-2 border-emerald-500/20 hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all"
-                                        onClick={() => setPendingTiffinCount(prev => Math.min(5, (prev ?? 1) + 1))}
-                                        disabled={isLoading || (pendingTiffinCount ?? 1) >= 5}
-                                    >
-                                        <Plus className="h-6 w-6 text-emerald-400" />
-                                    </Button>
+                    return (
+                        <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h4 className="font-bold">{getDayName(selectedDate)}</h4>
+                                    <p className="text-sm text-muted-foreground">{formatDate(selectedDate)}</p>
                                 </div>
-                            </div>
-                        </div>
-
-                        {getModification(selectedDate)?.cancelled ? (
-                            /* Cancelled State */
-                            <div className="space-y-3">
-                                <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400">
-                                    <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                                    <p className="text-sm font-medium">Delivery currently cancelled for this date</p>
-                                </div>
-                                <Button
-                                    onClick={() => handleChangeTiffinCount(selectedDate, pendingTiffinCount!)}
-                                    disabled={isLoading}
-                                    className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-[0_8px_16px_rgba(16,185,129,0.2)] transition-all active:scale-[0.98] group"
-                                >
-                                    {isLoading ? (
-                                        <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                                    ) : (
-                                        <Check className="h-5 w-5 mr-3 group-hover:scale-110 transition-transform" />
-                                    )}
-                                    <span className="text-lg">Add to Plan ({pendingTiffinCount} tiffin{pendingTiffinCount !== 1 ? 's' : ''})</span>
+                                <Button variant="ghost" size="sm" onClick={() => setSelectedDate(null)}>
+                                    <X className="h-4 w-4" />
                                 </Button>
                             </div>
-                        ) : (
-                            /* Active State */
-                            <div className="space-y-3">
-                                {pendingTiffinCount !== currentEffectiveCount ? (
-                                    /* Show Save if count changed */
+
+                            {/* Cutoff Warning */}
+                            {isAfterCutoff && (
+                                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex gap-2 text-amber-400">
+                                    <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                                    <div className="text-xs">
+                                        <p className="font-bold">2:00 AM Deadline Passed</p>
+                                        <p>Only cancellations are allowed for today&apos;s delivery.</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Tiffin Count Adjuster */}
+                            <div className="space-y-4 pt-2">
+                                <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-white/5 border border-white/10">
+                                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
+                                        Number of Tiffins
+                                    </span>
+                                    <div className="flex items-center gap-8">
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-12 w-12 rounded-full border-2 border-emerald-500/20 hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all"
+                                            onClick={() => setPendingTiffinCount(prev => Math.max(1, (prev ?? 1) - 1))}
+                                            disabled={isLoading || (pendingTiffinCount ?? 1) <= 1}
+                                        >
+                                            <Minus className="h-6 w-6 text-emerald-400" />
+                                        </Button>
+
+                                        <div className="flex flex-col items-center min-w-[4rem]">
+                                            <span className="text-5xl font-black tracking-tighter text-emerald-50">
+                                                {pendingTiffinCount}
+                                            </span>
+                                        </div>
+
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-12 w-12 rounded-full border-2 border-emerald-500/20 hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all"
+                                            onClick={() => setPendingTiffinCount(prev => Math.min(5, (prev ?? 1) + 1))}
+                                            disabled={isLoading || (pendingTiffinCount ?? 1) >= 5}
+                                        >
+                                            <Plus className="h-6 w-6 text-emerald-400" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {getModification(selectedDate)?.cancelled ? (
+                                /* Cancelled State */
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400">
+                                        <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                                        <p className="text-sm font-medium">Delivery currently cancelled for this date</p>
+                                    </div>
                                     <Button
                                         onClick={() => handleChangeTiffinCount(selectedDate, pendingTiffinCount!)}
-                                        disabled={isLoading}
-                                        className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-[0_8px_16px_rgba(16,185,129,0.2)] transition-all active:scale-[0.98] group"
+                                        disabled={isLoading || isAfterCutoff}
+                                        className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-[0_8px_16px_rgba(16,185,129,0.2)] transition-all active:scale-[0.98] group disabled:opacity-50"
                                     >
                                         {isLoading ? (
                                             <Loader2 className="h-5 w-5 animate-spin mr-2" />
                                         ) : (
                                             <Check className="h-5 w-5 mr-3 group-hover:scale-110 transition-transform" />
                                         )}
-                                        <span className="text-lg">Update to {pendingTiffinCount} Tiffin{pendingTiffinCount !== 1 ? 's' : ''}</span>
+                                        <span className="text-lg">Add to Plan ({pendingTiffinCount} tiffin{pendingTiffinCount !== 1 ? 's' : ''})</span>
                                     </Button>
-                                ) : (
-                                    /* Regular active options */
-                                    <div className="grid grid-cols-1 gap-3">
+                                </div>
+                            ) : (
+                                /* Active State */
+                                <div className="space-y-3">
+                                    {pendingTiffinCount !== currentEffectiveCount ? (
+                                        /* Show Save if count changed */
                                         <Button
-                                            variant="destructive"
-                                            onClick={() => handleCancelDate(selectedDate)}
-                                            disabled={isLoading}
-                                            className="w-full h-12 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl transition-all"
+                                            onClick={() => handleChangeTiffinCount(selectedDate, pendingTiffinCount!)}
+                                            disabled={isLoading || isAfterCutoff}
+                                            className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-[0_8px_16px_rgba(16,185,129,0.2)] transition-all active:scale-[0.98] group disabled:opacity-50"
                                         >
-                                            <X className="h-4 w-4 mr-2" />
-                                            Cancel Delivery
+                                            {isLoading ? (
+                                                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                                            ) : (
+                                                <Check className="h-5 w-5 mr-3 group-hover:scale-110 transition-transform" />
+                                            )}
+                                            <span className="text-lg">Update to {pendingTiffinCount} Tiffin{pendingTiffinCount !== 1 ? 's' : ''}</span>
                                         </Button>
-
-                                        {getModification(selectedDate) && (
+                                    ) : (
+                                        /* Regular active options */
+                                        <div className="grid grid-cols-1 gap-3">
                                             <Button
-                                                variant="ghost"
-                                                onClick={() => handleRestoreDefault(selectedDate)}
+                                                variant="destructive"
+                                                onClick={() => handleCancelDate(selectedDate)}
                                                 disabled={isLoading}
-                                                className="w-full h-12 text-muted-foreground hover:text-white hover:bg-white/5 rounded-xl transition-all"
+                                                className="w-full h-12 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl transition-all"
                                             >
-                                                <Undo2 className="h-4 w-4 mr-2" />
-                                                Reset to Default ({defaultTiffinCount})
+                                                <X className="h-4 w-4 mr-2" />
+                                                Cancel Delivery
                                             </Button>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                )}
+
+                                            {getModification(selectedDate) && (
+                                                <Button
+                                                    variant="ghost"
+                                                    onClick={() => handleRestoreDefault(selectedDate)}
+                                                    disabled={isLoading || isAfterCutoff}
+                                                    className="w-full h-12 text-muted-foreground hover:text-white hover:bg-white/5 rounded-xl transition-all disabled:opacity-50"
+                                                >
+                                                    <Undo2 className="h-4 w-4 mr-2" />
+                                                    Reset to Default ({defaultTiffinCount})
+                                                </Button>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
 
                 {/* Legend */}
                 <div className="flex flex-wrap gap-4 text-xs text-muted-foreground pt-2 border-t border-white/5">

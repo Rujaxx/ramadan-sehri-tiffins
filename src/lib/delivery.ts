@@ -16,9 +16,13 @@ export async function getDeliveryWindow() {
         : now.startOf("day");
 
     if (config?.ramadanStarted) {
-        const officialStart = config.officialStartDate
-            ? DateTime.fromJSDate(config.officialStartDate).setZone("Asia/Kolkata").startOf("day")
-            : null;
+        let officialStart: DateTime | null = null;
+        if (config.officialStartDate) {
+            const dateStr = typeof config.officialStartDate === "string"
+                ? config.officialStartDate
+                : (config.officialStartDate as Date).toISOString();
+            officialStart = DateTime.fromISO(dateStr.split('T')[0]).setZone("Asia/Kolkata").startOf("day");
+        }
 
         // If it's already past the official start, use the real current target
         // Otherwise, stay on the official start date
@@ -30,7 +34,10 @@ export async function getDeliveryWindow() {
     } else {
         // Onboarding phase: use official start date if set, otherwise Feb 18
         if (config?.officialStartDate) {
-            targetDate = DateTime.fromJSDate(config.officialStartDate).setZone("Asia/Kolkata").startOf("day");
+            const dateStr = typeof config.officialStartDate === "string"
+                ? config.officialStartDate
+                : (config.officialStartDate as Date).toISOString();
+            targetDate = DateTime.fromISO(dateStr.split('T')[0]).setZone("Asia/Kolkata").startOf("day");
         } else {
             targetDate = DateTime.fromObject({ year: 2026, month: 2, day: 18 }, { zone: "Asia/Kolkata" }).startOf("day");
         }

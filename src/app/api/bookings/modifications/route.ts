@@ -1,6 +1,8 @@
 import { db } from "@/lib/db";
 import { authorizeUser } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { getDeliveryWindow } from "@/lib/delivery";
+import { DateTime } from "luxon";
 
 // GET: Fetch user's booking with all modifications
 export async function GET(req: Request) {
@@ -74,6 +76,22 @@ export async function POST(req: Request) {
         const parsedDate = new Date(date);
         parsedDate.setHours(0, 0, 0, 0); // Normalize to start of day
 
+        // --- 2 AM CUTOFF LOGIC ---
+        const { targetDate } = await getDeliveryWindow();
+        const nowIST = DateTime.now().setZone("Asia/Kolkata");
+        const modificationDateLuxon = DateTime.fromJSDate(parsedDate).setZone("Asia/Kolkata").startOf("day");
+
+        // If trying to modify TODAY'S delivery after 2 AM
+        if (modificationDateLuxon.hasSame(targetDate, "day") && nowIST.hour >= 2) {
+            // Only allow if it's a cancellation. Block tiffin count changes or un-cancellations.
+            if (!cancelled) {
+                return NextResponse.json({
+                    error: "Modifications for today's delivery are closed after 2:00 AM. Only cancellations are permitted."
+                }, { status: 400 });
+            }
+        }
+        // -------------------------
+
         // Check if modification already exists for this date
         const existingMod = await db.bookingModification.findFirst({
             where: {
@@ -145,6 +163,18 @@ export async function DELETE(req: Request) {
         if (modification.booking.userId !== auth.id && auth.role !== "ADMIN") {
             return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
         }
+
+        // --- 2 AM CUTOFF LOGIC ---
+        const { targetDate } = await getDeliveryWindow();
+        const nowIST = DateTime.now().setZone("Asia/Kolkata");
+        const modificationDateLuxon = DateTime.fromJSDate(modification.date).setZone("Asia/Kolkata").startOf("day");
+
+        if (modificationDateLuxon.hasSame(targetDate, "day") && nowIST.hour >= 2) {
+            return NextResponse.json({
+                error: "Today's delivery settings cannot be reset after 2:00 AM."
+            }, { status: 400 });
+        }
+        // -------------------------
 
         await db.bookingModification.delete({
             where: { id: modificationId }

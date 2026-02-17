@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { authorizeUser } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { DateTime } from "luxon";
 
 // GET: Fetch all recent modifications for admin view
 export async function GET(req: Request) {
@@ -10,9 +11,8 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // Get modifications from the last 7 days
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        // Get modifications from the last 7 days (IST aligned)
+        const sevenDaysAgo = DateTime.now().setZone("Asia/Kolkata").startOf("day").minus({ days: 7 }).toJSDate();
 
         const modifications = await db.bookingModification.findMany({
             where: {
