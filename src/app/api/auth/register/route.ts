@@ -6,6 +6,8 @@ import { registrationSchema } from "@/lib/validations";
 import { RAMADAN_START_DATE, RAMADAN_END_DATE } from "@/lib/constants";
 import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "@/lib/auth";
+import { getDeliveryWindow } from "@/lib/delivery";
+import { DateTime } from "luxon";
 
 export async function POST(req: Request) {
     try {
@@ -25,17 +27,36 @@ export async function POST(req: Request) {
             where: { id: "singleton" }
         });
 
-        const EFFECTIVE_START_DATE = config?.officialStartDate || new Date(RAMADAN_START_DATE);
+        const { targetDate: serverTargetDate } = await getDeliveryWindow();
 
         let bookingStartDate: Date;
         let bookingEndDate: Date;
 
         if (bookingType === "FULL_RAMADAN") {
-            bookingStartDate = new Date(EFFECTIVE_START_DATE);
-            bookingEndDate = new Date(RAMADAN_END_DATE);
+            let startDT: DateTime;
+            if (config?.officialStartDate) {
+                const dateStr = typeof config.officialStartDate === "string"
+                    ? config.officialStartDate
+                    : (config.officialStartDate as Date).toISOString();
+                startDT = DateTime.fromISO(dateStr.split('T')[0]).setZone("Asia/Kolkata").startOf("day");
+            } else {
+                startDT = DateTime.fromISO(RAMADAN_START_DATE, { zone: "Asia/Kolkata" }).startOf("day");
+            }
+            bookingStartDate = startDT.toJSDate();
+            bookingEndDate = DateTime.fromISO(RAMADAN_END_DATE, { zone: "Asia/Kolkata" }).endOf("day").toJSDate();
         } else {
             bookingStartDate = new Date(startDate!);
-            bookingEndDate = new Date(endDate!);
+            bookingEndDate = DateTime.fromISO(endDate!, { zone: "Asia/Kolkata" }).endOf("day").toJSDate();
+
+            // Validation: Start date cannot be in the past (before server target date)
+            const targetDateMidnight = serverTargetDate.startOf("day");
+            const requestedStartMidnight = DateTime.fromISO(startDate!, { zone: "Asia/Kolkata" }).startOf("day");
+
+            if (requestedStartMidnight < targetDateMidnight) {
+                return NextResponse.json({
+                    error: `Start date cannot be earlier than ${targetDateMidnight.toFormat("LLL d")}`
+                }, { status: 400 });
+            }
         }
 
         // Check if user exists

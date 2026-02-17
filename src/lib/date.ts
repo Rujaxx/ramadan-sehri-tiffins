@@ -35,9 +35,17 @@ export function getSeasonStatus(config?: GlobalConfig): SeasonStatus {
     const now = DateTime.now().setZone("Asia/Kolkata");
     const today = now.startOf("day");
 
-    const start = config?.officialStartDate
-        ? DateTime.fromJSDate(new Date(config.officialStartDate)).setZone("Asia/Kolkata").startOf("day")
-        : DateTime.fromFormat(RAMADAN_START_DATE, "yyyy-MM-dd", { zone: "Asia/Kolkata" }).startOf("day");
+    let start: DateTime;
+    if (config?.officialStartDate) {
+        if (typeof config.officialStartDate === "string") {
+            // Handle ISO string or YYYY-MM-DD
+            start = DateTime.fromISO(config.officialStartDate.split('T')[0]).setZone("Asia/Kolkata").startOf("day");
+        } else {
+            start = DateTime.fromJSDate(config.officialStartDate).setZone("Asia/Kolkata").startOf("day");
+        }
+    } else {
+        start = DateTime.fromFormat(RAMADAN_START_DATE, "yyyy-MM-dd", { zone: "Asia/Kolkata" }).startOf("day");
+    }
 
     const end = DateTime.fromFormat(RAMADAN_END_DATE, "yyyy-MM-dd", { zone: "Asia/Kolkata" }).startOf("day");
 
@@ -72,10 +80,14 @@ export function getEffectiveDeliveryDate(nowISO?: string): DateTime {
 export function getNextDeliveryLabel(status: SeasonStatus, config?: GlobalConfig): string {
     switch (status) {
         case "PRE_SEASON":
-            const startStr = config?.officialStartDate
-                ? new Date(config.officialStartDate).toLocaleDateString("en-IN", { month: "short", day: "numeric" })
-                : "Feb 18";
-            return `Starts ${startStr}`;
+            let displayDate = "Feb 18";
+            if (config?.officialStartDate) {
+                const dateObj = typeof config.officialStartDate === "string"
+                    ? new Date(config.officialStartDate)
+                    : config.officialStartDate;
+                displayDate = dateObj.toLocaleDateString("en-IN", { month: "short", day: "numeric" });
+            }
+            return `Starts ${displayDate}`;
         case "ACTIVE":
             return "Tomorrow";
         case "POST_SEASON":

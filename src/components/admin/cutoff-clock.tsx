@@ -2,46 +2,53 @@
 
 import { useEffect, useState } from "react";
 import { Clock, Lock, Unlock, Sun } from "lucide-react";
+import { DateTime } from "luxon";
 
 // 6 AM cutoff for Sehri deliveries
 const SEHRI_CUTOFF_HOUR = 6;
 
 export function CutoffClock() {
-    const [time, setTime] = useState(new Date());
+    const [now, setNow] = useState(DateTime.now().setZone("Asia/Kolkata"));
     const [isLocked, setIsLocked] = useState(false);
 
     useEffect(() => {
         const timer = setInterval(() => {
-            const now = new Date();
-            setTime(now);
+            const current = DateTime.now().setZone("Asia/Kolkata");
+            setNow(current);
             // Locked after 6 AM (cutoff passed for today's delivery)
-            setIsLocked(now.getHours() >= SEHRI_CUTOFF_HOUR);
+            setIsLocked(current.hour >= SEHRI_CUTOFF_HOUR);
         }, 1000);
         return () => clearInterval(timer);
     }, []);
 
-    const timeString = time.toLocaleTimeString("en-IN", {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-    });
+    const timeString = now.toFormat("hh:mm a");
 
     // Calculate target delivery date
     // After 6 AM → changes go to tomorrow. Before 6 AM → changes go to today.
-    const todayDate = new Date(time);
-    const tomorrowDate = new Date(time);
-    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+    const targetDate = now.hour >= SEHRI_CUTOFF_HOUR
+        ? now.plus({ days: 1 })
+        : now;
 
-    const lockedDeliveryDate = todayDate.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
-    const nextDeliveryDate = isLocked
-        ? tomorrowDate.toLocaleDateString("en-IN", { day: "numeric", month: "short" })
-        : todayDate.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+    const lockedDeliveryDate = now.toFormat("d MMM");
+    const nextDeliveryDate = targetDate.toFormat("d MMM");
 
     // Calculate time until next cutoff
-    const hoursUntilCutoff = isLocked
-        ? 24 - time.getHours() + SEHRI_CUTOFF_HOUR
-        : SEHRI_CUTOFF_HOUR - time.getHours();
-    const minsUntilCutoff = 60 - time.getMinutes();
+    let hoursUntilCutoff: number;
+    let minsUntilCutoff: number;
+
+    if (isLocked) {
+        // Locked: time until tomorrow's 6 AM
+        const nextCutoff = now.plus({ days: 1 }).set({ hour: SEHRI_CUTOFF_HOUR, minute: 0, second: 0, millisecond: 0 });
+        const diff = nextCutoff.diff(now, ["hours", "minutes"]);
+        hoursUntilCutoff = Math.floor(diff.hours);
+        minsUntilCutoff = Math.floor(diff.minutes);
+    } else {
+        // Live: time until today's 6 AM
+        const nextCutoff = now.set({ hour: SEHRI_CUTOFF_HOUR, minute: 0, second: 0, millisecond: 0 });
+        const diff = nextCutoff.diff(now, ["hours", "minutes"]);
+        hoursUntilCutoff = Math.floor(diff.hours);
+        minsUntilCutoff = Math.floor(diff.minutes);
+    }
 
     return (
         <div className={`p-4 rounded-2xl transition-all duration-500 border ${isLocked

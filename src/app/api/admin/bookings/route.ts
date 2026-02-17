@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { authorizeUser } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { DateTime } from "luxon";
+import { getDeliveryWindow } from "@/lib/delivery";
 import { calculateEffectiveTiffins } from "@/lib/booking_utils";
 import { phoneSchema, alternatePhoneSchema } from "@/lib/validations";
 
@@ -25,49 +26,23 @@ export async function GET(req: Request) {
         const cursor = searchParams.get("cursor");
 
         // Calculate target delivery date
-        const config = await db.globalConfig.findUnique({ where: { id: "singleton" } });
-        const now = DateTime.now().setZone("Asia/Kolkata");
-
-        const realTargetDate = now.hour >= 6
-            ? now.plus({ days: 1 }).startOf("day")
-            : now.startOf("day");
-
-        let targetDate: DateTime;
-        if (config?.ramadanStarted) {
-            const officialStart = config.officialStartDate
-                ? DateTime.fromJSDate(config.officialStartDate).setZone("Asia/Kolkata").startOf("day")
-                : null;
-
-            if (officialStart && realTargetDate < officialStart) {
-                targetDate = officialStart;
-            } else {
-                targetDate = realTargetDate;
-            }
-        } else {
-            // Onboarding phase: use official start date if set, otherwise Feb 18
-            if (config?.officialStartDate) {
-                targetDate = DateTime.fromJSDate(config.officialStartDate).setZone("Asia/Kolkata").startOf("day");
-            } else {
-                targetDate = DateTime.fromObject({ year: 2026, month: 2, day: 18 }, { zone: "Asia/Kolkata" }).startOf("day");
-            }
-        }
-
-        const targetDateJS = targetDate.toJSDate();
-        const dayAfterJS = targetDate.plus({ days: 1 }).toJSDate();
-
+        const { targetDate, displayLabel, displayDate } = await getDeliveryWindow();
+        const targetDateStartJS = targetDate.startOf("day").toJSDate();
+        const targetDateEndJS = targetDate.endOf("day").toJSDate();
+        const dayAfterJS = targetDate.plus({ days: 1 }).startOf("day").toJSDate();
         // Build where clause
         const whereClause: any = {
             status: status,
             OR: [
                 {
-                    startDate: { lte: targetDateJS },
-                    endDate: { gte: targetDateJS }
+                    startDate: { lte: targetDateEndJS },
+                    endDate: { gte: targetDateStartJS }
                 },
                 {
                     modifications: {
                         some: {
                             date: {
-                                gte: targetDateJS,
+                                gte: targetDateStartJS,
                                 lt: dayAfterJS
                             }
                         }
@@ -108,7 +83,7 @@ export async function GET(req: Request) {
                 modifications: {
                     where: {
                         date: {
-                            gte: targetDateJS,
+                            gte: targetDateStartJS,
                             lt: dayAfterJS
                         }
                     }

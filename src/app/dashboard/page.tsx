@@ -174,6 +174,7 @@ export default function UserDashboard() {
                             modifications={booking.modifications}
                             isRecurring={booking.type === "RECURRING"}
                             onUpdate={fetchData}
+                            config={config || undefined}
                         />
                     </div>
                 </div>
