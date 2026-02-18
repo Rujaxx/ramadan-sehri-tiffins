@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/auth-context";
+import { Badge } from "@/components/ui/badge";
 import {
     Search,
     Loader2,
@@ -12,6 +13,8 @@ import {
     CheckCheck,
     Copy,
     Check,
+    Package,
+    Clock,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -24,6 +27,7 @@ interface Delivery {
         area: string;
         address: string;
         landmark: string;
+        verified: boolean;
     };
     tiffinCount: number;
     isCancelled: boolean;
@@ -31,14 +35,21 @@ interface Delivery {
     deliveredAt: string | null;
 }
 
+interface Area {
+    name: string;
+    count: number;
+}
+
 export function VolunteerDeliveryPanel() {
     const { token } = useAuth();
     const [deliveries, setDeliveries] = useState<Delivery[]>([]);
+    const [areas, setAreas] = useState<Area[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isMoreLoading, setIsMoreLoading] = useState(false);
     const [nextCursor, setNextCursor] = useState<string | null>(null);
     const [query, setQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState<"ALL" | "PENDING" | "DELIVERED">("PENDING");
+    const [areaFilter, setAreaFilter] = useState("");
     const [displayLabel, setDisplayLabel] = useState("");
 
     // Persistent scroll observer
@@ -46,7 +57,7 @@ export function VolunteerDeliveryPanel() {
 
     useEffect(() => {
         fetchDeliveries(true);
-    }, [token, statusFilter]);
+    }, [token, statusFilter, areaFilter]);
 
     const fetchDeliveries = async (isInitial = false) => {
         if (isInitial) {
@@ -60,6 +71,7 @@ export function VolunteerDeliveryPanel() {
             const params = new URLSearchParams();
             if (query) params.append("query", query);
             if (statusFilter !== "ALL") params.append("status", statusFilter);
+            if (areaFilter) params.append("area", areaFilter);
             if (!isInitial && nextCursor) params.append("cursor", nextCursor);
             params.append("limit", "20");
 
@@ -69,6 +81,7 @@ export function VolunteerDeliveryPanel() {
                 const data = await res.json();
                 if (isInitial) {
                     setDeliveries(data.deliveries);
+                    setAreas(data.areas || []);
                     setDisplayLabel(data.displayLabel);
                 } else {
                     setDeliveries(prev => [...prev, ...data.deliveries]);
@@ -159,15 +172,29 @@ export function VolunteerDeliveryPanel() {
         fetchDeliveries(true);
     };
 
+    // Group by area for better organization
+    const groupedByArea = deliveries.reduce((acc, delivery) => {
+        const area = delivery.user.area;
+        if (!acc[area]) acc[area] = [];
+        acc[area].push(delivery);
+        return acc;
+    }, {} as Record<string, Delivery[]>);
+
     return (
         <div className="space-y-4">
             {/* Delivery Day Header */}
             <div className="flex items-center justify-between px-2">
                 <div>
                     <h2 className="text-xl font-black">{displayLabel || "Loading..."}</h2>
-                    <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">
-                        {deliveries.filter(d => !d.isDelivered).length} Pending • {deliveries.filter(d => d.isDelivered).length} Done
-                    </p>
+                    <div className="flex items-center gap-2">
+                        <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">
+                            {deliveries.filter(d => !d.isDelivered).length} Pending • {deliveries.filter(d => d.isDelivered).length} Done
+                        </p>
+                        <span className="h-1 w-1 rounded-full bg-zinc-800" />
+                        <p className="text-[10px] text-emerald-500 uppercase tracking-widest font-bold">
+                            {areas.reduce((acc, a) => acc + a.count, 0)} Tiffins Total
+                        </p>
+                    </div>
                 </div>
                 <button
                     onClick={() => fetchDeliveries(true)}
@@ -179,15 +206,29 @@ export function VolunteerDeliveryPanel() {
 
             {/* Controls */}
             <div className="flex flex-col gap-3">
-                <form onSubmit={handleSearch} className="relative group">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-600 group-focus-within:text-emerald-500 transition-colors" />
-                    <input
-                        type="text"
-                        placeholder="Search name or address..."
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        className="w-full bg-zinc-900/50 border border-zinc-800 rounded-2xl pl-11 pr-4 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-zinc-900 transition-all placeholder:text-zinc-700"
-                    />
+                <form onSubmit={handleSearch} className="flex gap-2">
+                    <div className="relative flex-1 group">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-600 group-focus-within:text-emerald-500 transition-colors" />
+                        <input
+                            type="text"
+                            placeholder="Search..."
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            className="w-full bg-zinc-900/50 border border-zinc-800 rounded-2xl pl-11 pr-4 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-zinc-900 transition-all placeholder:text-zinc-700"
+                        />
+                    </div>
+                    {areas.length > 1 && (
+                        <select
+                            value={areaFilter}
+                            onChange={(e) => setAreaFilter(e.target.value)}
+                            className="bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-2 text-xs font-bold uppercase tracking-wider text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 min-w-[120px] appearance-none text-center"
+                        >
+                            <option value="">ALL AREAS</option>
+                            {areas.map(area => (
+                                <option key={area.name} value={area.name}>{area.name}</option>
+                            ))}
+                        </select>
+                    )}
                 </form>
 
                 <div className="flex gap-1.5 p-1.5 bg-zinc-900/50 rounded-2xl border border-zinc-800">
@@ -200,7 +241,7 @@ export function VolunteerDeliveryPanel() {
                                 : "text-zinc-500 hover:text-zinc-300"
                                 }`}
                         >
-                            {s}
+                            {s === "DELIVERED" ? "COMPLETED" : s}
                         </button>
                     ))}
                 </div>
@@ -223,14 +264,31 @@ export function VolunteerDeliveryPanel() {
                     <p className="text-[10px] text-zinc-600 mt-1 uppercase font-bold">No {statusFilter.toLowerCase()} deliveries</p>
                 </div>
             ) : (
-                <div className="space-y-3">
-                    {deliveries.map((delivery) => (
-                        <DeliveryCard
-                            key={delivery.id}
-                            delivery={delivery}
-                            onMarkDelivered={handleMarkDelivered}
-                            onUndoDelivery={handleUndoDelivery}
-                        />
+                <div className="space-y-6">
+                    {Object.entries(groupedByArea).map(([area, areaDeliveries]) => (
+                        <div key={area} className="space-y-3">
+                            {/* Area Header */}
+                            <div className="flex items-center gap-2 px-2">
+                                <MapPin className="h-3.5 w-3.5 text-emerald-500/70" />
+                                <span className="font-bold text-[11px] text-zinc-500 uppercase tracking-wider">{area}</span>
+                                <span className="h-1 w-1 rounded-full bg-zinc-800" />
+                                <span className="text-[10px] text-zinc-600 font-bold">
+                                    {areas.find(a => a.name === area)?.count || 0} TIFFINS
+                                </span>
+                            </div>
+
+                            {/* Delivery Cards */}
+                            <div className="space-y-3">
+                                {areaDeliveries.map((delivery) => (
+                                    <DeliveryCard
+                                        key={delivery.id}
+                                        delivery={delivery}
+                                        onMarkDelivered={handleMarkDelivered}
+                                        onUndoDelivery={handleUndoDelivery}
+                                    />
+                                ))}
+                            </div>
+                        </div>
                     ))}
 
                     {/* Infinite Scroll Load Trigger */}
@@ -280,6 +338,14 @@ function DeliveryCard({
         setIsUpdating(false);
     };
 
+
+
+    const formatTime = (dateStr: string | null) => {
+        if (!dateStr) return "";
+        const date = new Date(dateStr);
+        return date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    };
+
     return (
         <div className={`group relative p-4 rounded-[2rem] border transition-all duration-300 ${delivery.isDelivered
             ? "bg-zinc-900/40 border-zinc-800/50"
@@ -291,25 +357,26 @@ function DeliveryCard({
                 <button
                     onClick={toggleStatus}
                     disabled={isUpdating}
-                    className="relative shrink-0"
+                    className="relative shrink-0 group/btn"
                 >
-                    <div className={`w-14 h-24 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all overflow-hidden ${delivery.isDelivered
-                        ? "bg-emerald-500 text-black"
-                        : "bg-zinc-800 text-zinc-500 active:scale-95 active:bg-zinc-700"
+                    <div className={`w-14 h-full min-h-[110px] rounded-2xl flex flex-col items-center justify-center gap-2 transition-all overflow-hidden relative ${delivery.isDelivered
+                        ? "bg-gradient-to-b from-emerald-400 to-emerald-600 text-black shadow-lg shadow-emerald-500/20"
+                        : "bg-zinc-800 text-zinc-500 active:scale-95 active:bg-zinc-700 hover:text-zinc-300"
                         }`}>
+                        {!delivery.isDelivered && !isUpdating && (
+                            <div className="absolute inset-0 bg-emerald-500/10 animate-pulse" />
+                        )}
                         {isUpdating ? (
                             <Loader2 className="h-6 w-6 animate-spin" />
                         ) : delivery.isDelivered ? (
                             <>
                                 <CheckCheck className="h-7 w-7" />
-                                <span className="text-[10px] font-black uppercase [writing-mode:vertical-rl] [text-orientation:mixed] rotate-180">Done</span>
+                                <span className="text-[10px] font-black uppercase [writing-mode:vertical-rl] [text-orientation:mixed] rotate-180 tracking-widest">Done</span>
                             </>
                         ) : (
                             <>
-                                <div className="w-6 h-6 rounded-full border-2 border-zinc-700 flex items-center justify-center">
-                                    <div className="w-2 h-2 rounded-full bg-zinc-700" />
-                                </div>
-                                <span className="text-[10px] font-black uppercase [writing-mode:vertical-rl] [text-orientation:mixed] rotate-180">Sehri</span>
+                                <Package className="h-6 w-6 mb-1" />
+                                <span className="text-[10px] font-black uppercase [writing-mode:vertical-rl] [text-orientation:mixed] rotate-180 tracking-widest group-hover/btn:text-emerald-400 transition-colors">Complete</span>
                             </>
                         )}
                     </div>
@@ -319,12 +386,24 @@ function DeliveryCard({
                 <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
                     <div>
                         <div className="flex items-start justify-between mb-1">
-                            <h3 className={`font-black text-lg truncate ${delivery.isDelivered ? "text-zinc-500 line-through" : "text-white"}`}>
-                                {delivery.user.name}
-                            </h3>
-                            <div className="flex items-baseline gap-1 bg-zinc-950 px-3 py-1 rounded-xl border border-zinc-800 whitespace-nowrap">
-                                <span className="text-lg font-black text-white">{delivery.tiffinCount}</span>
-                                <span className="text-[9px] font-black uppercase text-zinc-500">Box</span>
+                            <div className="flex items-center gap-2 min-w-0">
+                                <h3 className={`font-black text-lg truncate ${delivery.isDelivered ? "text-zinc-500 line-through" : "text-white"}`}>
+                                    {delivery.user.name}
+                                </h3>
+                                {!delivery.user.verified && (
+                                    <Badge className="bg-amber-500 text-black text-[8px] h-4 font-black border-none px-1.5 whitespace-nowrap shadow-lg shadow-amber-500/20">NEW</Badge>
+                                )}
+                            </div>
+                            <div className="flex flex-col items-end">
+                                <div className="flex items-baseline gap-1 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20 whitespace-nowrap">
+                                    <span className="text-xl font-black text-emerald-400">{delivery.tiffinCount}</span>
+                                    <span className="text-[9px] font-black uppercase text-emerald-600">Boxes</span>
+                                </div>
+                                {delivery.deliveredAt && (
+                                    <div className="flex items-center gap-1 mt-1 text-[8px] font-black text-emerald-600 uppercase tracking-tighter">
+                                        <Clock className="h-2 w-2" /> {formatTime(delivery.deliveredAt)}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -333,37 +412,44 @@ function DeliveryCard({
                             <p className="text-[11px] text-zinc-500 font-bold uppercase truncate tracking-tight">{delivery.user.area}</p>
                         </div>
 
-                        <p className={`text-xs leading-tight mb-2 line-clamp-2 break-words ${delivery.isDelivered ? "text-zinc-600" : "text-zinc-400 font-medium"}`}>
+                        <p className={`text-xs leading-tight mb-1 line-clamp-2 break-words ${delivery.isDelivered ? "text-zinc-600" : "text-zinc-400 font-medium"}`}>
                             {delivery.user.address}
                         </p>
+                        {delivery.user.landmark && (
+                            <p className={`text-[10px] uppercase font-bold mb-2 ${delivery.isDelivered ? "text-zinc-700" : "text-zinc-600"}`}>
+                                Near: {delivery.user.landmark}
+                            </p>
+                        )}
                     </div>
 
                     {/* Quick Action Bar */}
                     <div className="space-y-2">
                         <div className="flex items-stretch gap-2">
-                            <div className="flex-1 flex gap-1.5 min-w-0">
+                            <div className="flex-1 flex gap-2 min-w-0">
                                 <a
                                     href={`tel:${delivery.user.phone}`}
-                                    className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-zinc-950 border border-zinc-800 text-zinc-400 rounded-xl font-black text-[10px] uppercase tracking-wider hover:bg-zinc-900 transition-colors min-w-0"
+                                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-zinc-950 border border-zinc-800 text-zinc-300 rounded-xl font-black text-[10px] uppercase tracking-wider hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/30 transition-all min-w-0"
                                 >
-                                    <Phone className="h-3 w-3 text-emerald-500 shrink-0" /> <span className="truncate">Call</span>
+                                    <Phone className="h-3.5 w-3.5" /> <span>Call</span>
                                 </a>
+
                                 <CopyButton value={delivery.user.phone} />
                             </div>
 
-                            <div className="flex-1">
+                            <div className="w-[80px]">
                                 {delivery.isDelivered ? (
                                     <button
                                         onClick={toggleStatus}
                                         disabled={isUpdating}
-                                        className="w-full h-full flex items-center justify-center py-2.5 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl font-black text-[10px] uppercase tracking-wider hover:bg-red-500/20 transition-colors"
+                                        className="w-full h-full flex items-center justify-center py-2.5 bg-zinc-950 text-zinc-500 border border-zinc-900 rounded-xl font-black text-[10px] uppercase tracking-wider hover:text-red-400 hover:bg-red-500/5 transition-all"
                                     >
                                         {isUpdating ? "..." : "Undo"}
                                     </button>
                                 ) : (
-                                    <div className="h-full flex items-center justify-center px-1">
-                                        <p className="text-[9px] text-zinc-600 font-black uppercase italic tracking-tighter text-center leading-tight">
-                                            Tap box to finish
+                                    <div className="h-full flex flex-col items-center justify-center px-1">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse mb-1" />
+                                        <p className="text-[7px] text-zinc-600 font-black uppercase tracking-tighter text-center leading-none">
+                                            Tap side to deliver
                                         </p>
                                     </div>
                                 )}
@@ -377,7 +463,7 @@ function DeliveryCard({
                                         href={`tel:${delivery.user.alternatePhone}`}
                                         className="flex-1 flex items-center justify-center gap-2 py-2 bg-zinc-950/40 border border-zinc-800/50 text-zinc-500 rounded-xl font-bold text-[9px] uppercase tracking-wider hover:bg-zinc-900 transition-colors min-w-0"
                                     >
-                                        <Phone className="h-2.5 w-2.5 text-zinc-600 shrink-0" /> <span className="truncate">Alt: {delivery.user.alternatePhone}</span>
+                                        <Phone className="h-2.5 w-2.5 text-zinc-600 shrink-0" /> <span className="truncate">Alt: {'•'.repeat(Math.max(0, (delivery.user.alternatePhone?.length || 0) - 4))}{delivery.user.alternatePhone?.slice(-4)}</span>
                                     </a>
                                     <CopyButton value={delivery.user.alternatePhone} />
                                 </div>
