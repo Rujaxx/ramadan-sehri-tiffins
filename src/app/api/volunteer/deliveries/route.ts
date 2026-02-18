@@ -28,6 +28,11 @@ export async function GET(req: Request) {
         const cursor = searchParams.get("cursor");
         const status = searchParams.get("status") || "ALL"; // ALL, PENDING, DELIVERED
         const query = searchParams.get("query") || "";
+        const area = searchParams.get("area");
+
+        if (area && !volunteer.areas.includes(area)) {
+            return NextResponse.json({ error: "Unauthorized area access" }, { status: 403 });
+        }
 
         const { targetDate, windowStart, windowEnd } = getDeliveryWindow();
         const targetDateStartJS = targetDate.startOf("day").toJSDate();
@@ -56,7 +61,7 @@ export async function GET(req: Request) {
                 }
             ],
             user: {
-                area: { in: volunteer.areas },
+                area: area ? area : { in: volunteer.areas },
                 ...(query.length > 0 && {
                     OR: [
                         { name: { contains: query, mode: "insensitive" } },
@@ -121,6 +126,7 @@ export async function GET(req: Request) {
                         area: true,
                         address: true,
                         landmark: true,
+                        verified: true,
                     }
                 },
                 modifications: {
@@ -140,7 +146,7 @@ export async function GET(req: Request) {
                     }
                 }
             },
-            orderBy: { id: "asc" }
+            orderBy: { user: { area: "asc" } }
         });
         const hasNextPage = bookings.length > limit;
         const bookingsToReturn = hasNextPage ? bookings.slice(0, limit) : bookings;
@@ -154,7 +160,10 @@ export async function GET(req: Request) {
 
             return {
                 id: booking.id,
-                user: booking.user,
+                user: {
+                    ...booking.user,
+                    verified: booking.user.verified
+                },
                 tiffinCount: calculateEffectiveTiffins(booking, mod, targetDate),
                 isCancelled,
                 isDelivered,
@@ -162,9 +171,47 @@ export async function GET(req: Request) {
             };
         });
 
+        // 3. Area-wise summary for volunteer (if it's the first page)
+        let areaList: { name: string, count: number }[] = [];
+        if (!cursor) {
+            const areaBookings = await db.booking.findMany({
+                where: {
+                    ...whereClause,
+                    // We use same whereClause to match the statistics shown in Admin panel logic
+                },
+                select: {
+                    user: { select: { area: true } },
+                    tiffinCount: true,
+                    startDate: true,
+                    endDate: true,
+                    modifications: {
+                        where: {
+                            date: {
+                                gte: targetDateStartJS,
+                                lt: dayAfterJS
+                            }
+                        }
+                    }
+                }
+            });
+
+            const mappAreaWiseCount = new Map();
+            areaBookings.forEach(booking => {
+                const mod = booking.modifications[0];
+                const count = calculateEffectiveTiffins(booking as any, mod, targetDate);
+                mappAreaWiseCount.set(booking.user.area, (mappAreaWiseCount.get(booking.user.area) || 0) + count);
+            });
+
+            areaList = volunteer.areas.map(name => ({
+                name,
+                count: mappAreaWiseCount.get(name) || 0
+            }));
+        }
+
         return NextResponse.json({
             deliveries: enriched,
             nextCursor,
+            areas: areaList,
             displayLabel: `Sehri for ${targetDate.toFormat("LLL d")}`,
             targetDate: targetDate.toFormat("yyyy-MM-dd"),
         });
