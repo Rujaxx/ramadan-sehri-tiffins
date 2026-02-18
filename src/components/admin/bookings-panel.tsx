@@ -116,6 +116,22 @@ export function BookingsPanel({ deliveryLabel, onStatsUpdate }: BookingsPanelPro
         }
     };
 
+    const [allAreas, setAllAreas] = useState<string[]>([]);
+    useEffect(() => {
+        const fetchAllAreas = async () => {
+            try {
+                const res = await fetch("/api/areas");
+                if (res.ok) {
+                    const data = await res.json();
+                    setAllAreas(data.map((a: any) => a.name));
+                }
+            } catch (err) {
+                console.error("Failed to fetch all areas", err);
+            }
+        };
+        fetchAllAreas();
+    }, []);
+
     const handleSearch = () => {
         fetchBookings(true);
     };
@@ -150,7 +166,9 @@ export function BookingsPanel({ deliveryLabel, onStatsUpdate }: BookingsPanelPro
         return (
             b.user.name.toLowerCase().includes(q) ||
             b.user.phone.includes(q) ||
-            b.user.address.toLowerCase().includes(q)
+            b.user.address.toLowerCase().includes(q) ||
+            b.user.area.toLowerCase().includes(q) ||
+            b.user.landmark?.toLowerCase().includes(q)
         );
     });
 
@@ -185,7 +203,7 @@ export function BookingsPanel({ deliveryLabel, onStatsUpdate }: BookingsPanelPro
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
                         <input
                             type="text"
-                            placeholder="Search name or phone..."
+                            placeholder="Search Name, Phone, Area, Address, Landmark..."
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
                             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
@@ -268,7 +286,7 @@ export function BookingsPanel({ deliveryLabel, onStatsUpdate }: BookingsPanelPro
             {/* Add Booking Modal */}
             {showAddModal && (
                 <AddBookingModal
-                    areas={areas.map(area => area.name)}
+                    areas={allAreas.length > 0 ? allAreas : areas.map(a => a.name)}
                     onClose={() => setShowAddModal(false)}
                     onSuccess={() => {
                         setShowAddModal(false);
@@ -490,6 +508,12 @@ function AddBookingModal({
         pin: "3055", // Default PIN
         tiffinCount: "1"
     });
+
+    useEffect(() => {
+        if (areas.length > 0 && !form.area) {
+            setForm(prev => ({ ...prev, area: areas[0] }));
+        }
+    }, [areas]);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleSubmit = async () => {
