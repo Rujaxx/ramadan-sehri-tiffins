@@ -259,7 +259,7 @@ export async function DELETE(req: Request) {
         }
 
         const { searchParams } = new URL(req.url);
-        const volunteerId = searchParams.get("id");
+        const volunteerId = searchParams.get("volunteerId");
 
         if (!volunteerId) {
             return NextResponse.json({ error: "Volunteer ID required" }, { status: 400 });

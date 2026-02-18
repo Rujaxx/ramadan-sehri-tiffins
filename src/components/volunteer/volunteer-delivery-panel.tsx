@@ -296,15 +296,14 @@ export function VolunteerDeliveryPanel() {
                         <div
                             className="h-24 flex items-center justify-center"
                             ref={(el) => {
-                                if (el) {
-                                    if (observerRef.current) observerRef.current.disconnect();
-                                    observerRef.current = new IntersectionObserver((entries) => {
-                                        if (entries[0].isIntersecting && !isMoreLoading) {
-                                            fetchDeliveries();
-                                        }
-                                    }, { threshold: 0.1 });
-                                    observerRef.current.observe(el);
-                                }
+                                if (!el) return;
+                                const observer = new IntersectionObserver((entries) => {
+                                    if (entries[0].isIntersecting && !isMoreLoading && nextCursor) {
+                                        fetchDeliveries();
+                                    }
+                                }, { threshold: 0.1 });
+                                observer.observe(el);
+                                return () => observer.disconnect();
                             }}
                         >
                             {isMoreLoading && <Loader2 className="h-6 w-6 animate-spin text-zinc-500" />}

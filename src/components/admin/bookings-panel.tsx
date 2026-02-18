@@ -249,15 +249,14 @@ export function BookingsPanel({ deliveryLabel, onStatsUpdate }: BookingsPanelPro
                         <div
                             className="h-24 flex items-center justify-center"
                             ref={(el) => {
-                                if (el) {
-                                    const observer = new IntersectionObserver((entries) => {
-                                        if (entries[0].isIntersecting && !isMoreLoading) {
-                                            fetchBookings();
-                                            observer.unobserve(el);
-                                        }
-                                    }, { threshold: 0.1 });
-                                    observer.observe(el);
-                                }
+                                if (!el) return;
+                                const observer = new IntersectionObserver((entries) => {
+                                    if (entries[0].isIntersecting && !isMoreLoading && nextCursor) {
+                                        fetchBookings();
+                                    }
+                                }, { threshold: 0.1 });
+                                observer.observe(el);
+                                return () => observer.disconnect();
                             }}
                         >
                             {isMoreLoading && <Loader2 className="h-6 w-6 animate-spin text-zinc-500" />}

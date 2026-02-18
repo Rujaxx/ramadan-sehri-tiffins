@@ -66,7 +66,7 @@ export async function GET(req: Request) {
                 status: "ACTIVE",
                 startDate: { lte: monthEndJS },
                 endDate: { gte: monthStartJS },
-                user: { role: "USER" },
+                user: { role: "USER", blocked: false },
             },
             include: {
                 user: { select: { area: true } },
@@ -85,7 +85,7 @@ export async function GET(req: Request) {
         const modBookings = await db.booking.findMany({
             where: {
                 status: "ACTIVE",
-                user: { role: "USER" },
+                user: { role: "USER", blocked: false },
                 modifications: {
                     some: {
                         date: {

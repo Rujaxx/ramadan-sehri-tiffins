@@ -17,7 +17,8 @@ import {
     ChevronDown,
     Copy,
     MoreVertical,
-    Calendar
+    Calendar,
+    Trash2
 } from "lucide-react";
 import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -62,6 +63,8 @@ export function UserManagement({ defaultFilter }: { defaultFilter?: boolean | nu
     const [query, setQuery] = useState("");
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [isMoreLoading, setIsMoreLoading] = useState(false);
+    const [nextCursor, setNextCursor] = useState<string | null>(null);
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [editForm, setEditForm] = useState<Partial<User>>({});
     const [newTiffinCount, setNewTiffinCount] = useState<number>(0);
@@ -91,18 +94,39 @@ export function UserManagement({ defaultFilter }: { defaultFilter?: boolean | nu
         return () => clearTimeout(timer);
     }, [query]);
 
-    const fetchUsers = async () => {
-        setIsLoading(true);
+    const fetchUsers = async (isInitial = true) => {
+        if (isInitial) {
+            setIsLoading(true);
+            setNextCursor(null);
+        } else {
+            setIsMoreLoading(true);
+        }
+
         try {
-            const res = await fetch(`/api/admin/users?query=${query}`);
+            const params = new URLSearchParams();
+            if (query) params.append("query", query);
+            if (!isInitial && nextCursor) params.append("cursor", nextCursor);
+            params.append("limit", "20");
+
+            const res = await fetch(`/api/admin/users?${params}`);
             if (res.ok) {
                 const data = await res.json();
-                setUsers(data.users);
+                if (isInitial) {
+                    setUsers(data.users);
+                } else {
+                    setUsers(prev => {
+                        const existingIds = new Set(prev.map(u => u.id));
+                        const newEntries = data.users.filter((u: any) => !existingIds.has(u.id));
+                        return [...prev, ...newEntries];
+                    });
+                }
+                setNextCursor(data.nextCursor);
             }
         } catch (error) {
             toast.error("Failed to fetch users");
         } finally {
             setIsLoading(false);
+            setIsMoreLoading(false);
         }
     };
 
@@ -145,6 +169,26 @@ export function UserManagement({ defaultFilter }: { defaultFilter?: boolean | nu
                 fetchUsers();
             } else {
                 toast.error("Failed to verify user");
+            }
+        } catch (error) {
+            toast.error("An error occurred");
+        }
+    };
+
+    const handleDeleteUser = async (user: User) => {
+        if (!confirm(`CRITICAL: Are you sure you want to PERMANENTLY DELETE ${user.name}? This will remove all their data, including past bookings. This cannot be undone.`)) return;
+
+        try {
+            const res = await fetch(`/api/admin/users?userId=${user.id}`, {
+                method: "DELETE"
+            });
+
+            if (res.ok) {
+                toast.success("User deleted successfully");
+                fetchUsers();
+            } else {
+                const data = await res.json();
+                toast.error(data.error || "Failed to delete user");
             }
         } catch (error) {
             toast.error("An error occurred");
@@ -332,6 +376,13 @@ export function UserManagement({ defaultFilter }: { defaultFilter?: boolean | nu
                                                                 </>
                                                             )}
                                                         </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={() => handleDeleteUser(user)}
+                                                            className="flex items-center gap-2 focus:bg-red-500/10 text-red-400 focus:text-red-400 cursor-pointer py-2.5"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                            <span className="font-bold text-xs uppercase tracking-widest">Permanently Delete</span>
+                                                        </DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </div>
@@ -445,6 +496,25 @@ export function UserManagement({ defaultFilter }: { defaultFilter?: boolean | nu
                                             </div>
                                         </div>
                                     ))}
+
+                                {/* Infinite Scroll Load Trigger */}
+                                {nextCursor && (
+                                    <div
+                                        className="h-24 flex items-center justify-center p-4"
+                                        ref={(el) => {
+                                            if (!el) return;
+                                            const observer = new IntersectionObserver((entries) => {
+                                                if (entries[0].isIntersecting && !isMoreLoading && nextCursor) {
+                                                    fetchUsers(false);
+                                                }
+                                            }, { threshold: 0.1 });
+                                            observer.observe(el);
+                                            return () => observer.disconnect();
+                                        }}
+                                    >
+                                        {isMoreLoading && <Loader2 className="h-6 w-6 animate-spin text-zinc-500" />}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
