@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Stepper } from "@/components/shared/stepper";
 import { PinInput } from "@/components/shared/pin-input";
-import { RAMADAN_AREAS, RAMADAN_START_DATE, RAMADAN_END_DATE } from "@/lib/constants";
+import { RAMADAN_START_DATE, RAMADAN_END_DATE } from "@/lib/constants";
 import { registrationSchema } from "@/lib/validations";
 import { MapPin, Phone, User as UserIcon, Lock, Loader2, Calendar as CalendarIcon, CalendarRange, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -74,6 +74,7 @@ function StepIndicator({ currentStep, totalSteps }: { currentStep: number; total
 export function RegistrationForm() {
     const [step, setStep] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
+    const [areas, setAreas] = useState<string[]>([]);
     const [ramadanDates, setRamadanDates] = useState({
         start: new Date(RAMADAN_START_DATE + "T00:00:00"),
         end: new Date(RAMADAN_END_DATE + "T00:00:00"),
@@ -82,18 +83,18 @@ export function RegistrationForm() {
     const router = useRouter();
     const { login } = useAuth();
 
-    // Fetch dynamic start date and target date from global config
+    // Fetch dynamic areas and config on mount
     useEffect(() => {
-        const fetchConfig = async () => {
+        const fetchData = async () => {
             try {
-                const res = await fetch("/api/config");
-                if (res.ok) {
-                    const data = await res.json();
+                // Fetch config
+                const configRes = await fetch("/api/config");
+                if (configRes.ok) {
+                    const data = await configRes.json();
                     if (data.targetDate) {
                         setServerTargetDate(data.targetDate);
                     }
                     if (data.officialStartDate) {
-                        // Normalize to local midnight to avoid timezone issues
                         const datePart = data.officialStartDate.split('T')[0];
                         setRamadanDates(prev => ({
                             ...prev,
@@ -101,11 +102,20 @@ export function RegistrationForm() {
                         }));
                     }
                 }
+
+                // Fetch areas
+                const areasRes = await fetch("/api/areas");
+                if (areasRes.ok) {
+                    const data = await areasRes.json();
+                    if (Array.isArray(data) && data.length > 0) {
+                        setAreas(data.map((a: any) => a.name));
+                    }
+                }
             } catch (error) {
-                console.error("Failed to fetch global config:", error);
+                console.error("Failed to fetch data:", error);
             }
         };
-        fetchConfig();
+        fetchData();
     }, []);
 
     const form = useForm<z.infer<typeof formSchema>>({
@@ -316,7 +326,7 @@ export function RegistrationForm() {
                                                     </SelectTrigger>
                                                 </FormControl>
                                                 <SelectContent>
-                                                    {RAMADAN_AREAS.map((area) => (
+                                                    {areas.map((area) => (
                                                         <SelectItem key={area} value={area}>{area}</SelectItem>
                                                     ))}
                                                 </SelectContent>

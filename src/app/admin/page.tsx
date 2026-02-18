@@ -28,6 +28,8 @@ import {
     PhoneCall,
     Minus,
     Plus,
+    X,
+    Trash2,
     ShieldCheck,
     Truck,
 } from "lucide-react";
@@ -313,6 +315,7 @@ export default function AdminPage() {
                         token={token}
                         onConfigUpdate={fetchConfig}
                         onVerifyUser={handleVerifyUser}
+                        onStatsUpdate={fetchStats}
                     />
                 )}
 
@@ -576,7 +579,8 @@ function OverviewPanel({
     config,
     token,
     onConfigUpdate,
-    onVerifyUser
+    onVerifyUser,
+    onStatsUpdate
 }: {
     stats: Stats | null;
     areaData: AreaBreakdown[];
@@ -585,7 +589,53 @@ function OverviewPanel({
     token: string | null;
     onConfigUpdate: () => void;
     onVerifyUser: (user: any) => void;
+    onStatsUpdate: () => void;
 }) {
+    const [newAreaName, setNewAreaName] = useState("");
+    const [isAddingArea, setIsAddingArea] = useState(false);
+
+    const handleAddArea = async () => {
+        if (!newAreaName.trim()) return;
+        setIsAddingArea(true);
+        try {
+            const res = await fetch("/api/admin/areas", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: newAreaName.trim() })
+            });
+            if (res.ok) {
+                toast.success("Area added successfully");
+                setNewAreaName("");
+                onStatsUpdate();
+            } else {
+                const data = await res.json();
+                toast.error(data.error || "Failed to add area");
+            }
+        } catch (error) {
+            toast.error("An error occurred");
+        } finally {
+            setIsAddingArea(false);
+        }
+    };
+
+    const handleDeleteArea = async (name: string) => {
+        if (!confirm(`Delete area "${name}"? This cannot be undone.`)) return;
+        try {
+            const res = await fetch(`/api/admin/areas?name=${encodeURIComponent(name)}`, {
+                method: "DELETE"
+            });
+            if (res.ok) {
+                toast.success("Area deleted successfully");
+                onStatsUpdate();
+            } else {
+                const data = await res.json();
+                toast.error(data.error || "Failed to delete area");
+            }
+        } catch (error) {
+            toast.error("An error occurred");
+        }
+    };
+
     return (
         <div className="space-y-6">
             {/* Ramadan Season Control */}
@@ -637,11 +687,33 @@ function OverviewPanel({
                 </CardContent>
             </Card>
 
-            {/* Area Breakdown */}
-            <div className="space-y-2">
-                <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider px-1">
-                    Area Breakdown
-                </h3>
+            {/* Area Breakdown & Management */}
+            <div className="space-y-3">
+                <div className="flex items-center justify-between px-1">
+                    <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider">
+                        Area Management
+                    </h3>
+                </div>
+
+                {/* Add Area Input */}
+                <div className="flex gap-2 p-2 bg-zinc-900 border border-zinc-800 rounded-2xl">
+                    <input
+                        type="text"
+                        placeholder="New area name..."
+                        value={newAreaName}
+                        onChange={(e) => setNewAreaName(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleAddArea()}
+                        className="flex-1 bg-transparent px-3 py-2 text-sm outline-none placeholder:text-zinc-600"
+                    />
+                    <button
+                        onClick={handleAddArea}
+                        disabled={isAddingArea || !newAreaName.trim()}
+                        className="px-4 py-2 bg-emerald-500 text-black font-black text-xs rounded-xl hover:bg-emerald-400 disabled:opacity-50 transition-all"
+                    >
+                        {isAddingArea ? <Loader2 className="h-4 w-4 animate-spin" /> : "ADD"}
+                    </button>
+                </div>
+
                 {areaData.length === 0 ? (
                     <div className="text-center py-8 text-zinc-600">
                         No area data available
@@ -651,14 +723,25 @@ function OverviewPanel({
                         {areaData.map((area) => (
                             <div
                                 key={area.area}
-                                className="flex items-center justify-between p-4 bg-zinc-900 border border-zinc-800 rounded-2xl"
+                                className="flex items-center justify-between p-4 bg-zinc-900 border border-zinc-800 rounded-2xl group"
                             >
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
                                         <MapPin className="h-5 w-5" />
                                     </div>
                                     <div>
-                                        <div className="font-bold">{area.area}</div>
+                                        <div className="font-bold flex items-center gap-2">
+                                            {area.area}
+                                            {area.totalTiffins === 0 && area.volunteers.length === 0 && (
+                                                <button
+                                                    onClick={() => handleDeleteArea(area.area)}
+                                                    className="p-1.5 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all ml-1"
+                                                    title="Delete Empty Area"
+                                                >
+                                                    <Trash2 className="h-3 w-3" />
+                                                </button>
+                                            )}
+                                        </div>
                                         <div className="flex items-center gap-2 text-xs text-zinc-500">
                                             {area.volunteers.length > 0 ? (
                                                 <span>{area.volunteers.join(", ")}</span>

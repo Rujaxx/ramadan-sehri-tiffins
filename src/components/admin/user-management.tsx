@@ -38,7 +38,6 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { RAMADAN_AREAS } from "@/lib/constants";
 import { maskPhone } from "@/lib/utils";
 
 interface User {
@@ -71,6 +70,7 @@ export function UserManagement({ defaultFilter }: { defaultFilter?: boolean | nu
     const [isUpdating, setIsUpdating] = useState(false);
     const [filterVerified, setFilterVerified] = useState<boolean | null>(null);
     const [revealedUsers, setRevealedUsers] = useState<Set<string>>(new Set());
+    const [areas, setAreas] = useState<string[]>([]);
 
     const toggleReveal = (userId: string) => {
         const next = new Set(revealedUsers);
@@ -84,7 +84,22 @@ export function UserManagement({ defaultFilter }: { defaultFilter?: boolean | nu
             setFilterVerified(defaultFilter);
         }
         fetchUsers();
+        fetchAreas();
     }, [defaultFilter]);
+
+    const fetchAreas = async () => {
+        try {
+            const res = await fetch("/api/areas");
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    setAreas(data.map((a: any) => a.name));
+                }
+            }
+        } catch (error) {
+            console.error("Failed to fetch areas:", error);
+        }
+    };
 
     // Fetch users when query changes
     useEffect(() => {
@@ -290,7 +305,7 @@ export function UserManagement({ defaultFilter }: { defaultFilter?: boolean | nu
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
                             <input
                                 type="text"
-                                placeholder="Find name or phone..."
+                                placeholder="Search Name, Phone, Area, Address, Landmark..."
                                 value={query}
                                 onChange={(e) => setQuery(e.target.value)}
                                 className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl pl-12 pr-4 py-3 sm:py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all font-medium"
@@ -612,7 +627,7 @@ export function UserManagement({ defaultFilter }: { defaultFilter?: boolean | nu
                                                     className="w-full bg-zinc-900/50 border border-zinc-800 focus:border-emerald-500/50 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all appearance-none"
                                                 >
                                                     <option value="" disabled>Select Area</option>
-                                                    {RAMADAN_AREAS.map((area) => (
+                                                    {areas.map((area) => (
                                                         <option key={area} value={area}>{area}</option>
                                                     ))}
                                                 </select>

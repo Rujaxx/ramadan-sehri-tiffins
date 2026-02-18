@@ -25,7 +25,10 @@ export async function GET(req: Request) {
                 role: "USER",
                 OR: [
                     { name: { contains: query, mode: "insensitive" } },
-                    { phone: { contains: query, mode: "insensitive" } }
+                    { phone: { contains: query, mode: "insensitive" } },
+                    { address: { contains: query, mode: "insensitive" } },
+                    { area: { contains: query, mode: "insensitive" } },
+                    { landmark: { contains: query, mode: "insensitive" } }
                 ]
             },
             include: {
@@ -159,6 +162,11 @@ export async function DELETE(req: Request) {
                     include: {
                         deliveries: true
                     }
+                },
+                volunteer: {
+                    include: {
+                        deliveries: true
+                    }
                 }
             }
         });
@@ -167,28 +175,41 @@ export async function DELETE(req: Request) {
             return NextResponse.json({ error: "User not found" }, { status: 404 });
         }
 
-        // Flatten all deliveries across all bookings
-        const totalDeliveries = user.bookings.reduce((acc, booking) => acc + booking.deliveries.length, 0);
+        // Check for recipient history
+        const recipientDeliveries = user.bookings.reduce((acc, booking) => acc + booking.deliveries.length, 0);
+        // Check for volunteer history
+        const volunteerDeliveries = user.volunteer?.deliveries.length || 0;
 
-        if (totalDeliveries > 0) {
+        if (recipientDeliveries > 0 || volunteerDeliveries > 0) {
             return NextResponse.json({
-                error: "Cannot delete user with delivery history. Please 'Block' them instead to preserve records."
+                error: "Cannot delete user with delivery history (as recipient or volunteer). Please 'Block' them instead to preserve records."
             }, { status: 400 });
         }
 
-        // Safe to delete: Perform cascading delete manually (bookings first, then user)
-        // Note: BookingModification also needs to be cleaned up
-        await db.$transaction([
-            db.bookingModification.deleteMany({
+        // Safe to delete: Perform cascading delete manually in a transaction
+        await db.$transaction(async (tx) => {
+            // 1. Delete modifications for all bookings of this user
+            await tx.bookingModification.deleteMany({
                 where: { booking: { userId: userId } }
-            }),
-            db.booking.deleteMany({
+            });
+
+            // 2. Delete all bookings
+            await tx.booking.deleteMany({
                 where: { userId: userId }
-            }),
-            db.user.delete({
+            });
+
+            // 3. Delete volunteer profile if exists
+            if (user.volunteer) {
+                await tx.volunteer.delete({
+                    where: { userId: userId }
+                });
+            }
+
+            // 4. Finally delete the user
+            await tx.user.delete({
                 where: { id: userId }
-            })
-        ]);
+            });
+        });
 
         return NextResponse.json({ success: true, message: "User and associated data permanently deleted" });
     } catch (error) {

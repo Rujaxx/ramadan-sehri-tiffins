@@ -56,7 +56,10 @@ export async function GET(req: Request) {
                 ...(query && {
                     OR: [
                         { name: { contains: query, mode: "insensitive" } },
-                        { phone: { contains: query, mode: "insensitive" } }
+                        { phone: { contains: query, mode: "insensitive" } },
+                        { address: { contains: query, mode: "insensitive" } },
+                        { area: { contains: query, mode: "insensitive" } },
+                        { landmark: { contains: query, mode: "insensitive" } }
                     ]
                 })
             }
