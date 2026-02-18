@@ -78,17 +78,23 @@ export function getEffectiveDeliveryDate(nowISO?: string): DateTime {
 }
 
 export function getNextDeliveryLabel(status: SeasonStatus, config?: GlobalConfig): string {
+    const targetDate = getEffectiveDeliveryDate();
+    const now = DateTime.now().setZone("Asia/Kolkata");
+
     switch (status) {
         case "PRE_SEASON":
             let displayDate = "Feb 19";
             if (config?.officialStartDate) {
-                const dateObj = typeof config.officialStartDate === "string"
-                    ? new Date(config.officialStartDate)
-                    : config.officialStartDate;
-                displayDate = dateObj.toLocaleDateString("en-IN", { month: "short", day: "numeric" });
+                const startDT = typeof config.officialStartDate === "string"
+                    ? DateTime.fromISO(config.officialStartDate.split('T')[0]).setZone("Asia/Kolkata")
+                    : DateTime.fromJSDate(config.officialStartDate).setZone("Asia/Kolkata");
+                displayDate = startDT.toFormat("d LLL");
             }
             return `Starts ${displayDate}`;
         case "ACTIVE":
+            if (targetDate.hasSame(now, 'day')) {
+                return "Today";
+            }
             return "Tomorrow";
         case "POST_SEASON":
             return "Ended";

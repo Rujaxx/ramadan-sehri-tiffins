@@ -22,8 +22,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
-import { getSeasonStatus, getNextDeliveryLabel, GlobalConfig } from "@/lib/date";
-import { RAMADAN_END_DATE } from "@/lib/constants";
+import { getSeasonStatus, getNextDeliveryLabel, getEffectiveDeliveryDate, GlobalConfig } from "@/lib/date";
+import { calculateEffectiveTiffins } from "@/lib/booking_utils";
+import { DateTime } from "luxon";
+import { RAMADAN_START_DATE, RAMADAN_END_DATE } from "@/lib/constants";
 
 interface BookingData {
     user: {
@@ -41,6 +43,7 @@ interface BookingData {
         status: string;
         type: string;
         modifications: any[];
+        deliveries: any[];
     } | null;
 }
 
@@ -160,6 +163,33 @@ export default function UserDashboard() {
                             isRecurring={booking.type === "RECURRING"}
                             onRecurringToggle={handleRecurringToggle}
                             config={config || undefined}
+                            isDelivered={(() => {
+                                if (!booking?.deliveries) return false;
+                                const targetDate = getEffectiveDeliveryDate();
+                                const windowStart = targetDate.minus({ days: 1 }).set({ hour: 6, minute: 0, second: 0, millisecond: 0 });
+                                const windowEnd = targetDate.set({ hour: 6, minute: 0, second: 0, millisecond: 0 });
+                                return booking.deliveries.some(d => {
+                                    const dDate = DateTime.fromISO(d.deliveredAt).setZone("Asia/Kolkata");
+                                    return dDate >= windowStart && dDate < windowEnd;
+                                });
+                            })()}
+                            effectiveTiffins={(() => {
+                                if (!booking) return 0;
+                                const targetDate = getEffectiveDeliveryDate();
+                                const mod = booking.modifications.find(m =>
+                                    DateTime.fromISO(m.date).setZone("Asia/Kolkata").hasSame(targetDate, 'day')
+                                );
+                                return calculateEffectiveTiffins(
+                                    {
+                                        ...booking,
+                                        startDate: new Date(booking.startDate),
+                                        endDate: new Date(booking.endDate),
+                                        type: booking.type as "RECURRING" | "ONE_TIME"
+                                    },
+                                    mod,
+                                    targetDate
+                                );
+                            })()}
                         />
                     </div>
 
@@ -172,6 +202,7 @@ export default function UserDashboard() {
                             bookingStartDate={booking.startDate}
                             bookingEndDate={booking.endDate}
                             modifications={booking.modifications}
+                            deliveries={booking.deliveries}
                             isRecurring={booking.type === "RECURRING"}
                             onUpdate={fetchData}
                             config={config || undefined}
@@ -184,19 +215,65 @@ export default function UserDashboard() {
                     <QuickStatCard
                         icon={<Calendar className="h-5 w-5 text-emerald-400" />}
                         label="Next Delivery"
-                        value={getNextDeliveryLabel(getSeasonStatus(config || undefined), config || undefined)}
-                        subtext={new Date().toLocaleDateString("en-IN", { month: "short", day: "numeric" })}
+                        value={(() => {
+                            if (!booking) return "Loading...";
+                            const targetDate = getEffectiveDeliveryDate();
+                            const mod = booking.modifications.find(m =>
+                                DateTime.fromISO(m.date).setZone("Asia/Kolkata").hasSame(targetDate, 'day')
+                            );
+                            const tiffins = calculateEffectiveTiffins(
+                                {
+                                    ...booking,
+                                    startDate: new Date(booking.startDate),
+                                    endDate: new Date(booking.endDate),
+                                    type: booking.type as "RECURRING" | "ONE_TIME"
+                                },
+                                mod,
+                                targetDate
+                            );
+                            if (tiffins === 0) return "Cancelled";
+                            return getNextDeliveryLabel(getSeasonStatus(config || undefined), config || undefined);
+                        })()}
+                        subtext={getEffectiveDeliveryDate().toFormat("d MMM")}
                     />
                     <QuickStatCard
                         icon={<Truck className="h-5 w-5 text-cyan-400" />}
                         label="Booking Status"
-                        value={booking.status === "ACTIVE" ? "Confirmed" : "Cancelled"}
+                        value={(() => {
+                            if (!booking?.deliveries) return booking.status === "ACTIVE" ? "Confirmed" : "Cancelled";
+                            const targetDate = getEffectiveDeliveryDate();
+                            const windowStart = targetDate.minus({ days: 1 }).set({ hour: 6, minute: 0, second: 0, millisecond: 0 });
+                            const windowEnd = targetDate.set({ hour: 6, minute: 0, second: 0, millisecond: 0 });
+                            const isDelivered = booking.deliveries.some(d => {
+                                const dDate = DateTime.fromISO(d.deliveredAt).setZone("Asia/Kolkata");
+                                return dDate >= windowStart && dDate < windowEnd;
+                            });
+                            if (isDelivered) return "Delivered";
+                            return booking.status === "ACTIVE" ? "Confirmed" : "Cancelled";
+                        })()}
                         subtext="Live"
                     />
                     <QuickStatCard
                         icon={<History className="h-5 w-5 text-purple-400" />}
                         label="Daily Tiffins"
-                        value={`${booking.tiffinCount}🥘`}
+                        value={(() => {
+                            if (!booking) return "0🥘";
+                            const targetDate = getEffectiveDeliveryDate();
+                            const mod = booking.modifications.find(m =>
+                                DateTime.fromISO(m.date).setZone("Asia/Kolkata").hasSame(targetDate, 'day')
+                            );
+                            const tiffins = calculateEffectiveTiffins(
+                                {
+                                    ...booking,
+                                    startDate: new Date(booking.startDate),
+                                    endDate: new Date(booking.endDate),
+                                    type: booking.type as "RECURRING" | "ONE_TIME"
+                                },
+                                mod,
+                                targetDate
+                            );
+                            return `${tiffins}🥘`;
+                        })()}
                         subtext={booking.type === "RECURRING" ? "Full Ramadan" : "Custom Plan"}
                     />
                 </div>

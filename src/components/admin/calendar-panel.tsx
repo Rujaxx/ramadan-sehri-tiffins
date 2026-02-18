@@ -6,7 +6,6 @@ import {
     Loader2,
     ChevronLeft,
     ChevronRight,
-    Utensils,
     MapPin,
     X,
     Calendar,

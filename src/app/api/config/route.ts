@@ -13,8 +13,9 @@ export async function GET() {
         const { targetDate, displayDate } = getDeliveryWindow();
         const now = DateTime.now().setZone("Asia/Kolkata");
 
-        // isAfterCutoff is true if we are past 2 AM for today's delivery window
-        const isAfterCutoff = now.hour >= 2;
+        // isAfterCutoff is true if current time is past 2 AM of the target delivery date
+        const cutoffTime = targetDate.set({ hour: 2, minute: 0, second: 0, millisecond: 0 });
+        const isAfterCutoff = now >= cutoffTime;
 
         return NextResponse.json({
             ...(config || {
