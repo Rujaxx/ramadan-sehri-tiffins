@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import { Clock, Lock, Unlock, Sun } from "lucide-react";
 import { DateTime } from "luxon";
 
-// 6 AM cutoff for Sehri deliveries
-const SEHRI_CUTOFF_HOUR = 6;
+// Edits lock at 2 AM
+const EDIT_CUTOFF_HOUR = 2;
+// Target date shifts at 6 AM
+const SEHRI_TRANSITION_HOUR = 6;
 
 interface CutoffClockProps {
     serverTargetDate?: string | null;
@@ -21,17 +23,17 @@ export function CutoffClock({ serverTargetDate, officialStartDate }: CutoffClock
             const current = DateTime.now().setZone("Asia/Kolkata");
             setNow(current);
 
-            // Locked only if we are in the delivery window of the target date 
-            // AND it's after 6 AM of the previous day, essentially.
-            // Simplified: if current time is after 6 AM AND targetDate is tomorrow, it's locked.
-            // But if targetDate is still in the future (official start), it's NOT locked.
-            const currentRealTarget = current.hour >= SEHRI_CUTOFF_HOUR
+            // Target date is tomorrow if past transition hour (6 AM), otherwise today
+            const currentRealTarget = current.hour >= SEHRI_TRANSITION_HOUR
                 ? current.plus({ days: 1 }).startOf("day")
                 : current.startOf("day");
 
+            // Cutoff is 2 AM of the target date
+            const cutoffTime = currentRealTarget.set({ hour: EDIT_CUTOFF_HOUR, minute: 0, second: 0, millisecond: 0 });
+
             const isFutureStart = officialStartDate && currentRealTarget < DateTime.fromISO(officialStartDate.split('T')[0]).setZone("Asia/Kolkata").startOf("day");
 
-            setIsLocked(current.hour >= SEHRI_CUTOFF_HOUR && !isFutureStart);
+            setIsLocked(current >= cutoffTime && !isFutureStart);
         }, 1000);
         return () => clearInterval(timer);
     }, [officialStartDate]);
@@ -39,7 +41,7 @@ export function CutoffClock({ serverTargetDate, officialStartDate }: CutoffClock
     const timeString = now.toFormat("hh:mm a");
 
     // Calculate target delivery date
-    const realTargetDate = now.hour >= SEHRI_CUTOFF_HOUR
+    const realTargetDate = now.hour >= SEHRI_TRANSITION_HOUR
         ? now.plus({ days: 1 }).startOf("day")
         : now.startOf("day");
 
@@ -61,14 +63,18 @@ export function CutoffClock({ serverTargetDate, officialStartDate }: CutoffClock
     let minsUntilCutoff: number;
 
     if (isLocked) {
-        // Locked: time until tomorrow's 6 AM
-        const nextCutoff = now.plus({ days: 1 }).set({ hour: SEHRI_CUTOFF_HOUR, minute: 0, second: 0, millisecond: 0 });
+        // Locked: time until tomorrow's 6 AM transition
+        const nextCutoff = now.plus({ days: 1 }).set({ hour: SEHRI_TRANSITION_HOUR, minute: 0, second: 0, millisecond: 0 });
         const diff = nextCutoff.diff(now, ["hours", "minutes"]);
         hoursUntilCutoff = Math.floor(diff.hours);
         minsUntilCutoff = Math.floor(diff.minutes);
     } else {
-        // Live: time until today's 6 AM
-        const nextCutoff = now.set({ hour: SEHRI_CUTOFF_HOUR, minute: 0, second: 0, millisecond: 0 });
+        // Live: time until today's 2 AM or next target cycle
+        let nextCutoff = realTargetDate.set({ hour: EDIT_CUTOFF_HOUR, minute: 0, second: 0, millisecond: 0 });
+        if (now >= nextCutoff) {
+            // Already past 2 AM, but not yet 6 AM transition
+            nextCutoff = now.set({ hour: SEHRI_TRANSITION_HOUR, minute: 0, second: 0, millisecond: 0 });
+        }
         const diff = nextCutoff.diff(now, ["hours", "minutes"]);
         hoursUntilCutoff = Math.floor(diff.hours);
         minsUntilCutoff = Math.floor(diff.minutes);
@@ -118,12 +124,12 @@ export function CutoffClock({ serverTargetDate, officialStartDate }: CutoffClock
                         <>
                             Sehri <span className="font-bold">{lockedDeliveryDate}</span> is finalized.
                             Changes now count for <span className="font-bold">Sehri {nextDeliveryDate}</span>.
-                            Cutoff resets in ~{hoursUntilCutoff}h.
+                            Next cycle in ~{hoursUntilCutoff}h.
                         </>
                     ) : (
                         <>
                             Changes are live for <span className="font-bold">Sehri {nextDeliveryDate}</span>.
-                            Cutoff at <span className="font-bold">6:00 AM</span> ({hoursUntilCutoff}h {minsUntilCutoff}m remaining).
+                            Cutoff at <span className="font-bold">2:00 AM</span> ({hoursUntilCutoff}h {minsUntilCutoff}m remaining).
                         </>
                     )}
                 </p>

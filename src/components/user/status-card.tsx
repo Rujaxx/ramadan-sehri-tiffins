@@ -5,20 +5,25 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Info } from "lucide-react";
-import { getSeasonStatus, GlobalConfig } from "@/lib/date";
+import { DateTime } from "luxon";
+import { getSeasonStatus, GlobalConfig, getEffectiveDeliveryDate } from "@/lib/date";
 
 interface StatusCardProps {
     status: "ACTIVE" | "CANCELLED";
     isRecurring?: boolean;
     onRecurringToggle?: (val: boolean) => void;
     config?: GlobalConfig;
+    effectiveTiffins?: number;
+    isDelivered?: boolean;
 }
 
 export function StatusCard({
     status,
     isRecurring = true,
     onRecurringToggle,
-    config
+    config,
+    effectiveTiffins,
+    isDelivered
 }: StatusCardProps) {
     const [showMicroCopy, setShowMicroCopy] = useState(false);
 
@@ -34,18 +39,25 @@ export function StatusCard({
     const season = getSeasonStatus(config);
 
     const getStatusMessage = () => {
-        if (!isActive) return "No delivery scheduled for tomorrow.";
+        const targetDate = getEffectiveDeliveryDate();
+        const now = DateTime.now().setZone("Asia/Kolkata");
+        const relativeLabel = targetDate.hasSame(now, 'day') ? "today" : "tomorrow";
+
+        if (isDelivered) return `Sehri for ${relativeLabel} is Delivered.`;
+        if (!isActive || effectiveTiffins === 0) return `No delivery scheduled for ${relativeLabel}.`;
 
         switch (season) {
             case "PRE_SEASON":
                 const fallbackDate = config?.officialStartDate
-                    ? new Date(config.officialStartDate).toLocaleDateString("en-IN", { month: "short", day: "numeric" })
+                    ? (typeof config.officialStartDate === "string"
+                        ? DateTime.fromISO(config.officialStartDate.split('T')[0]).setZone("Asia/Kolkata").toFormat("d MMM")
+                        : DateTime.fromJSDate(config.officialStartDate).setZone("Asia/Kolkata").toFormat("d MMM"))
                     : "Feb 19";
-                return `Awaiting Ramadan. Estimated: ${fallbackDate} (Subject to moon sighting)`;
+                return `Awaiting Ramadan. Starts: ${fallbackDate}`;
             case "POST_SEASON":
                 return "Ramadan 1447 has ended. JazakAllah!";
             default:
-                return "Your Sehri for tomorrow is Confirmed.";
+                return `Your Sehri for ${relativeLabel} is Confirmed.`;
         }
     };
 

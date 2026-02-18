@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { authorizeUser } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { getDeliveryWindow } from "@/lib/delivery";
 
 export async function GET(req: Request) {
     try {
@@ -9,13 +10,16 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
+        const { windowStart, windowEnd } = getDeliveryWindow();
+
         const user = await db.user.findUnique({
             where: { id: auth.id },
             include: {
                 bookings: {
                     where: { status: "ACTIVE" },
                     include: {
-                        modifications: true
+                        modifications: true,
+                        deliveries: true
                     },
                     orderBy: { createdAt: "desc" },
                     take: 1

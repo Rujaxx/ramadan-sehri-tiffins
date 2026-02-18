@@ -76,17 +76,39 @@ export async function POST(req: Request) {
         const parsedDate = new Date(date);
         parsedDate.setHours(0, 0, 0, 0); // Normalize to start of day
 
-        // --- 2 AM CUTOFF LOGIC ---
-        const { targetDate } = getDeliveryWindow();
-        const nowIST = DateTime.now().setZone("Asia/Kolkata");
-        const modificationDateLuxon = DateTime.fromJSDate(parsedDate).setZone("Asia/Kolkata").startOf("day");
+        // --- DELIVERY STATUS CHECK ---
+        const targetDateTime = DateTime.fromJSDate(parsedDate).setZone("Asia/Kolkata").startOf("day");
+        const windowStart = targetDateTime.minus({ days: 1 }).set({ hour: 6, minute: 0, second: 0, millisecond: 0 });
+        const windowEnd = targetDateTime.set({ hour: 6, minute: 0, second: 0, millisecond: 0 });
 
-        // If trying to modify TODAY'S delivery after 2 AM
-        if (modificationDateLuxon.hasSame(targetDate, "day") && nowIST.hour >= 2) {
+        const deliveryRecord = await db.delivery.findFirst({
+            where: {
+                bookingId,
+                deliveredAt: {
+                    gte: windowStart.toJSDate(),
+                    lt: windowEnd.toJSDate()
+                }
+            }
+        });
+
+        if (deliveryRecord) {
+            return NextResponse.json({
+                error: "This tiffin has already been delivered. Modifications are no longer permitted."
+            }, { status: 400 });
+        }
+        // ------------------------------
+
+        // --- 2 AM CUTOFF LOGIC ---
+        const nowIST = DateTime.now().setZone("Asia/Kolkata");
+        const modificationDate = DateTime.fromJSDate(parsedDate).setZone("Asia/Kolkata").startOf("day");
+        const cutoffTime = modificationDate.set({ hour: 2, minute: 0, second: 0, millisecond: 0 });
+
+        // If trying to modify a delivery after its 2 AM cutoff
+        if (nowIST >= cutoffTime) {
             // Only allow if it's a cancellation. Block tiffin count changes or un-cancellations.
             if (!cancelled) {
                 return NextResponse.json({
-                    error: "Modifications for today's delivery are closed after 2:00 AM. Only cancellations are permitted."
+                    error: "Modifications for this delivery closed at 2:00 AM on the delivery day. Only cancellations are permitted."
                 }, { status: 400 });
             }
         }
@@ -164,14 +186,36 @@ export async function DELETE(req: Request) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
         }
 
-        // --- 2 AM CUTOFF LOGIC ---
-        const { targetDate } = getDeliveryWindow();
-        const nowIST = DateTime.now().setZone("Asia/Kolkata");
-        const modificationDateLuxon = DateTime.fromJSDate(modification.date).setZone("Asia/Kolkata").startOf("day");
+        // --- DELIVERY STATUS CHECK ---
+        const targetDateTime = DateTime.fromJSDate(modification.date).setZone("Asia/Kolkata").startOf("day");
+        const windowStart = targetDateTime.minus({ days: 1 }).set({ hour: 6, minute: 0, second: 0, millisecond: 0 });
+        const windowEnd = targetDateTime.set({ hour: 6, minute: 0, second: 0, millisecond: 0 });
 
-        if (modificationDateLuxon.hasSame(targetDate, "day") && nowIST.hour >= 2) {
+        const deliveryRecord = await db.delivery.findFirst({
+            where: {
+                bookingId: modification.bookingId,
+                deliveredAt: {
+                    gte: windowStart.toJSDate(),
+                    lt: windowEnd.toJSDate()
+                }
+            }
+        });
+
+        if (deliveryRecord) {
             return NextResponse.json({
-                error: "Today's delivery settings cannot be reset after 2:00 AM."
+                error: "This tiffin has already been delivered. Changes can no longer be reset."
+            }, { status: 400 });
+        }
+        // ------------------------------
+
+        // --- 2 AM CUTOFF LOGIC ---
+        const nowIST = DateTime.now().setZone("Asia/Kolkata");
+        const modificationDate = DateTime.fromJSDate(modification.date).setZone("Asia/Kolkata").startOf("day");
+        const cutoffTime = modificationDate.set({ hour: 2, minute: 0, second: 0, millisecond: 0 });
+
+        if (nowIST >= cutoffTime) {
+            return NextResponse.json({
+                error: "This delivery finalized at 2:00 AM. Settings can no longer be reset."
             }, { status: 400 });
         }
         // -------------------------

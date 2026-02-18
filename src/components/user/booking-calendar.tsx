@@ -35,6 +35,7 @@ interface BookingCalendarProps {
     bookingStartDate?: string;
     bookingEndDate?: string;
     modifications?: BookingModification[];
+    deliveries?: any[];
     onUpdate?: () => void;
     isRecurring?: boolean;
     config?: any;
@@ -81,6 +82,7 @@ export function BookingCalendar({
     bookingStartDate,
     bookingEndDate,
     modifications = [],
+    deliveries = [],
     onUpdate,
     isRecurring = true,
     config
@@ -94,6 +96,27 @@ export function BookingCalendar({
         const start = new Date(startDate);
         return today > start ? today : start;
     });
+
+    const isDateDelivered = (date: Date) => {
+        if (!deliveries || deliveries.length === 0) return false;
+
+        // Target date is 'date' (00:00:00)
+        // Window is [date - 1 day at 6AM, date at 6AM]
+        const target = new Date(date);
+        target.setHours(0, 0, 0, 0);
+
+        const windowEnd = new Date(target);
+        windowEnd.setHours(6, 0, 0, 0);
+
+        const windowStart = new Date(target);
+        windowStart.setDate(target.getDate() - 1);
+        windowStart.setHours(6, 0, 0, 0);
+
+        return deliveries.some(d => {
+            const dDate = new Date(d.deliveredAt);
+            return dDate >= windowStart && dDate < windowEnd;
+        });
+    };
 
     // Get modification for a specific date
     const getModification = (date: Date): BookingModification | undefined => {
@@ -337,22 +360,24 @@ export function BookingCalendar({
                         const isPast = isPastDate(date);
                         const isSelected = selectedDate?.toDateString() === date.toDateString();
                         const isToday = new Date().toDateString() === date.toDateString();
+                        const isDelivered = isDateDelivered(date);
 
                         return (
                             <button
                                 key={date.toISOString()}
-                                onClick={() => !isPast && handleSelectDate(isSelected ? null : date)}
-                                disabled={isPast}
+                                onClick={() => !isPast && !isDelivered && handleSelectDate(isSelected ? null : date)}
+                                disabled={isPast || isDelivered}
                                 className={`
                                     relative p-2 rounded-xl text-center transition-all
-                                    ${isPast
+                                    ${(isPast || isDelivered)
                                         ? "opacity-40 cursor-not-allowed"
                                         : "hover:bg-white/10 cursor-pointer"
                                     }
                                     ${isSelected ? "ring-2 ring-emerald-500 bg-emerald-500/10" : ""}
                                     ${isCancelled ? "bg-red-500/10 border border-red-500/30" : ""}
                                     ${hasChange ? "bg-amber-500/10 border border-amber-500/30" : ""}
-                                    ${isToday && !isCancelled && !hasChange ? "border border-emerald-500/50" : ""}
+                                    ${isDelivered ? "bg-blue-500/10 border border-blue-500/30" : ""}
+                                    ${isToday && !isCancelled && !hasChange && !isDelivered ? "border border-emerald-500/50" : ""}
                                 `}
                             >
                                 <div className="text-[10px] text-muted-foreground mb-1">
@@ -362,9 +387,10 @@ export function BookingCalendar({
                                     {date.getDate()}
                                 </div>
                                 <div className={`text-xs mt-1 font-medium ${isCancelled ? "text-red-400" :
-                                    hasChange ? "text-amber-400" : "text-emerald-400"
+                                    isDelivered ? "text-blue-400" :
+                                        hasChange ? "text-amber-400" : "text-emerald-400"
                                     }`}>
-                                    {isCancelled ? "✕" : `${effectiveCount}🥘`}
+                                    {isCancelled ? "✕" : isDelivered ? "✓" : `${effectiveCount}🥘`}
                                 </div>
                                 {isToday && (
                                     <div className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-400 rounded-full" />
@@ -466,8 +492,7 @@ export function BookingCalendar({
                             ) : (
                                 /* Active State */
                                 <div className="space-y-3">
-                                    {pendingTiffinCount !== currentEffectiveCount ? (
-                                        /* Show Save if count changed */
+                                    {pendingTiffinCount !== currentEffectiveCount && (
                                         <Button
                                             onClick={() => handleChangeTiffinCount(selectedDate, pendingTiffinCount!)}
                                             disabled={isLoading || isAfterCutoff}
@@ -480,32 +505,47 @@ export function BookingCalendar({
                                             )}
                                             <span className="text-lg">Update to {pendingTiffinCount} Tiffin{pendingTiffinCount !== 1 ? 's' : ''}</span>
                                         </Button>
-                                    ) : (
-                                        /* Regular active options */
-                                        <div className="grid grid-cols-1 gap-3">
-                                            <Button
-                                                variant="destructive"
-                                                onClick={() => handleCancelDate(selectedDate)}
-                                                disabled={isLoading}
-                                                className="w-full h-12 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl transition-all"
-                                            >
-                                                <X className="h-4 w-4 mr-2" />
-                                                Cancel Delivery
-                                            </Button>
-
-                                            {getModification(selectedDate) && (
-                                                <Button
-                                                    variant="ghost"
-                                                    onClick={() => handleRestoreDefault(selectedDate)}
-                                                    disabled={isLoading || isAfterCutoff}
-                                                    className="w-full h-12 text-muted-foreground hover:text-white hover:bg-white/5 rounded-xl transition-all disabled:opacity-50"
-                                                >
-                                                    <Undo2 className="h-4 w-4 mr-2" />
-                                                    Reset to Default ({defaultTiffinCount})
-                                                </Button>
-                                            )}
-                                        </div>
                                     )}
+
+                                    <div className="grid grid-cols-1 gap-2">
+                                        <Button
+                                            variant="destructive"
+                                            onClick={() => handleCancelDate(selectedDate)}
+                                            disabled={isLoading}
+                                            className={`w-full h-12 rounded-xl transition-all ${pendingTiffinCount !== currentEffectiveCount
+                                                ? "bg-transparent hover:bg-red-500/10 text-red-400 border border-red-500/20"
+                                                : "bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20"
+                                                }`}
+                                        >
+                                            <X className="h-4 w-4 mr-2" />
+                                            Cancel Delivery
+                                        </Button>
+
+                                        {getModification(selectedDate) && pendingTiffinCount === currentEffectiveCount && (
+                                            <Button
+                                                variant="ghost"
+                                                onClick={() => handleRestoreDefault(selectedDate)}
+                                                disabled={isLoading || isAfterCutoff}
+                                                className="w-full h-12 text-muted-foreground hover:text-white hover:bg-white/5 rounded-xl transition-all disabled:opacity-50"
+                                            >
+                                                <Undo2 className="h-4 w-4 mr-2" />
+                                                Reset to Default ({defaultTiffinCount})
+                                            </Button>
+                                        )}
+
+                                        {pendingTiffinCount !== currentEffectiveCount && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => setPendingTiffinCount(currentEffectiveCount)}
+                                                disabled={isLoading}
+                                                className="text-xs text-muted-foreground hover:text-white"
+                                            >
+                                                <Undo2 className="h-3 w-3 mr-2" />
+                                                Discard Changes
+                                            </Button>
+                                        )}
+                                    </div>
                                 </div>
                             )}
                         </div>
