@@ -51,6 +51,7 @@ export async function GET(req: Request) {
             ],
             user: {
                 role: "USER",
+                blocked: false,
                 ...(area && { area }),
                 ...(query && {
                     OR: [
@@ -89,7 +90,7 @@ export async function GET(req: Request) {
                     }
                 }
             },
-            orderBy: { user: { area: "asc" } } // Cursor pagination requires stable sort
+            orderBy: [{ user: { area: "asc" } }, { id: "asc" }] // Cursor pagination requires unique stable sort
         });
 
 

@@ -62,6 +62,7 @@ export async function GET(req: Request) {
             ],
             user: {
                 area: area ? area : { in: volunteer.areas },
+                blocked: false,
                 ...(query.length > 0 && {
                     OR: [
                         { name: { contains: query, mode: "insensitive" } },
@@ -146,7 +147,7 @@ export async function GET(req: Request) {
                     }
                 }
             },
-            orderBy: { user: { area: "asc" } }
+            orderBy: [{ user: { area: "asc" } }, { id: "asc" }]
         });
         const hasNextPage = bookings.length > limit;
         const bookingsToReturn = hasNextPage ? bookings.slice(0, limit) : bookings;

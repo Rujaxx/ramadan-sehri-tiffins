@@ -14,7 +14,13 @@ export async function GET(req: Request) {
         const { searchParams } = new URL(req.url);
         const query = searchParams.get("query") || "";
 
+        const limit = parseInt(searchParams.get("limit") || "20");
+        const cursor = searchParams.get("cursor");
+
         const users = await db.user.findMany({
+            take: limit + 1,
+            cursor: cursor ? { id: cursor } : undefined,
+            skip: cursor ? 1 : 0,
             where: {
                 role: "USER",
                 OR: [
@@ -27,10 +33,14 @@ export async function GET(req: Request) {
                     where: { status: "ACTIVE" }
                 }
             },
-            orderBy: { createdAt: "desc" }
+            orderBy: [{ createdAt: "desc" }, { id: "asc" }]
         });
 
-        return NextResponse.json({ users });
+        const hasNextPage = users.length > limit;
+        const usersToReturn = hasNextPage ? users.slice(0, limit) : users;
+        const nextCursor = hasNextPage ? usersToReturn[usersToReturn.length - 1].id : null;
+
+        return NextResponse.json({ users: usersToReturn, nextCursor });
     } catch (error) {
         console.error("Fetch users error:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -123,6 +133,66 @@ export async function PATCH(req: Request) {
         return NextResponse.json({ success: true, message: "User updated successfully" });
     } catch (error) {
         console.error("Update user error:", error);
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    }
+}
+
+export async function DELETE(req: Request) {
+    try {
+        const auth = await authorizeUser(req);
+        if (!auth || auth.role !== "ADMIN") {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const { searchParams } = new URL(req.url);
+        const userId = searchParams.get("userId");
+
+        if (!userId) {
+            return NextResponse.json({ error: "User ID is required" }, { status: 400 });
+        }
+
+        // Check if user exists and has any deliveries
+        const user = await db.user.findUnique({
+            where: { id: userId },
+            include: {
+                bookings: {
+                    include: {
+                        deliveries: true
+                    }
+                }
+            }
+        });
+
+        if (!user) {
+            return NextResponse.json({ error: "User not found" }, { status: 404 });
+        }
+
+        // Flatten all deliveries across all bookings
+        const totalDeliveries = user.bookings.reduce((acc, booking) => acc + booking.deliveries.length, 0);
+
+        if (totalDeliveries > 0) {
+            return NextResponse.json({
+                error: "Cannot delete user with delivery history. Please 'Block' them instead to preserve records."
+            }, { status: 400 });
+        }
+
+        // Safe to delete: Perform cascading delete manually (bookings first, then user)
+        // Note: BookingModification also needs to be cleaned up
+        await db.$transaction([
+            db.bookingModification.deleteMany({
+                where: { booking: { userId: userId } }
+            }),
+            db.booking.deleteMany({
+                where: { userId: userId }
+            }),
+            db.user.delete({
+                where: { id: userId }
+            })
+        ]);
+
+        return NextResponse.json({ success: true, message: "User and associated data permanently deleted" });
+    } catch (error) {
+        console.error("Delete user error:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }
