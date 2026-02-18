@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { authorizeUser } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { phoneSchema } from "@/lib/validations";
+import bcrypt from "bcryptjs";
 
 /**
  * GET: List all volunteers with their details and assigned areas
@@ -102,6 +103,7 @@ export async function POST(req: Request) {
             if (!pin) {
                 return NextResponse.json({ error: "PIN required for new volunteer" }, { status: 400 });
             }
+            const hashedPin = await bcrypt.hash(pin, 10);
             // Create new user as volunteer
             user = await db.user.create({
                 data: {
@@ -110,7 +112,7 @@ export async function POST(req: Request) {
                     address: "",
                     landmark: "",
                     area: "",
-                    pin,
+                    pin: hashedPin,
                     role: "VOLUNTEER",
                     verified: true,
                 }
