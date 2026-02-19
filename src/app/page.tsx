@@ -1,4 +1,4 @@
-import { RegistrationForm } from "@/components/user/registration-form";
+// import { RegistrationForm } from "@/components/user/registration-form";
 import { Moon, Star } from "lucide-react";
 import Link from "next/link";
 import { cookies } from "next/headers";
@@ -52,7 +52,14 @@ export default async function Home() {
         </div>
 
         <div className="w-full flex justify-center">
-          <RegistrationForm />
+          {/* <RegistrationForm /> */}
+          <div className="premium-card text-center space-y-3 max-w-md w-full py-10">
+            <p className="text-2xl font-bold text-zinc-300">🚫 Registrations Closed</p>
+            <p className="text-muted-foreground text-sm">New registrations are currently closed. If you already have a booking, please log in.</p>
+            <Link href="/login" className="inline-block mt-4 px-6 py-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-bold text-sm hover:bg-emerald-500/30 transition-colors">
+              Go to Login →
+            </Link>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full pt-12">
