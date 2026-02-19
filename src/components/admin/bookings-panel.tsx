@@ -15,6 +15,7 @@ import {
     MoreVertical,
     Copy,
     Check,
+    Printer,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
@@ -116,6 +117,244 @@ export function BookingsPanel({ deliveryLabel, onStatsUpdate }: BookingsPanelPro
         }
     };
 
+    const handlePrint = async () => {
+        try {
+            const params = new URLSearchParams();
+            if (areaFilter) params.append("area", areaFilter);
+            if (query) params.append("query", query);
+            params.append("export", "true"); // Tells API to skip pagination and return more
+
+            const res = await fetch(`/api/admin/bookings?${params}`);
+            if (!res.ok) throw new Error("Failed to fetch bookings for print");
+
+            const data = await res.json();
+            const bookingsToPrint: BookingData[] = data.bookings.filter((b: BookingData) => b.todayTiffinCount > 0);
+
+            // Detect language
+            const isMarathi = document.cookie.includes("googtrans=/en/mr");
+
+            const headers = isMarathi
+                ? ["नाव (Name)", "मोबाइल नंबर (Numbers)", "पत्ता (Address)", "टिफिन (Tiffins)"]
+                : ["Name", "Numbers", "Address", "Tiffins"];
+
+            const labels = isMarathi ? {
+                printedOn: "मुद्रित दिनांक (Printed on)",
+                bookingsList: "बुकिंग यादी (Bookings List)",
+                near: "जवळ (Near)",
+            } : {
+                printedOn: "Printed on",
+                bookingsList: "Bookings List",
+                near: "Near",
+            };
+
+            const printWindow = window.open("", "_blank");
+            if (!printWindow) return;
+
+            const html = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>${labels.bookingsList} - ${new Date().toLocaleDateString()}</title>
+                    <style>
+                        body { font-family: sans-serif; padding: 20px; padding-bottom: 100px; }
+                        .print-footer { 
+                            margin-top: 50px;
+                            padding: 40px;
+                            text-align: center;
+                            border-top: 2px dashed #eee;
+                        }
+                        .print-btn { 
+                            background: #10b981; color: #fff; border: none; 
+                            padding: 16px 40px; font-weight: bold; border-radius: 12px; 
+                            cursor: pointer; font-size: 18px;
+                            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+                        }
+                        .print-btn:hover { background: #059669; transform: translateY(-1px); }
+                        .notranslate { font-family: monospace; }
+                        h1 { font-size: 20px; text-align: center; }
+                        .date { text-align: right; font-size: 12px; color: #666; }
+                        .skiptranslate { display: none !important; }
+
+                        /* Header row */
+                        .row-header {
+                            display: flex; 
+                            background: #f2f2f2; 
+                            font-weight: bold;
+                            border: 1px solid #000;
+                            margin-top: 20px;
+                        }
+                        
+                        /* Neutralize Google Translate <font> wrappers so they don't affect layout */
+                        font { display: inline !important; vertical-align: baseline !important; margin: 0 !important; padding: 0 !important; border: none !important; }
+
+                        /* Each booking row - position:relative + overflow:hidden = truly monolithic in Chrome */
+                        .row {
+                            position: relative;
+                            border-left: 1px solid #000;
+                            border-right: 1px solid #000;
+                            border-bottom: 1px solid #000;
+                            overflow: hidden;
+                            break-inside: avoid;
+                            page-break-inside: avoid;
+                        }
+
+                        /* Column sizing - using float for print reliability */
+                        .col-name    { float: left; width: 20%; padding: 10px 8px; border-right: 1px solid #000; box-sizing: border-box; min-height: 1px; }
+                        .col-numbers { float: left; width: 20%; padding: 10px 8px; border-right: 1px solid #000; box-sizing: border-box; min-height: 1px; }
+                        .col-address { float: left; width: 50%; padding: 10px 8px; border-right: 1px solid #000; box-sizing: border-box; min-height: 1px; }
+                        .col-tiffin  { float: left; width: 10%; padding: 10px 8px; text-align: center; box-sizing: border-box; min-height: 1px; }
+
+                        .col-name, .col-numbers, .col-address, .col-tiffin {
+                            font-size: 14px;
+                        }
+
+                        @media print {
+                            .print-footer, button { display: none !important; }
+                            body { padding-bottom: 20px; }
+                            font { display: inline !important; vertical-align: baseline !important; }
+                            .row {
+                                position: relative;
+                                overflow: hidden;
+                                break-inside: avoid !important;
+                                page-break-inside: avoid !important;
+                            }
+                            @page { margin: 1cm; }
+                        }
+                    </style>
+                    <script type="text/javascript">
+                        // Set cookie for new window
+                        if (window.opener && window.opener.document.cookie.includes("googtrans=/en/mr")) {
+                            document.cookie = "googtrans=/en/mr; path=/";
+                        }
+                        
+                        function googleTranslateElementInit() {
+                            new google.translate.TranslateElement({
+                                pageLanguage: 'en',
+                                includedLanguages: 'en,mr',
+                                autoDisplay: false
+                            }, 'google_translate_element');
+                        }
+                        
+                        // Rebuild clean HTML from translated text content and print in a new window
+                        function cleanAndPrint() {
+                            // Extract the header text
+                            var headerEl = document.querySelector('.row-header');
+                            var headerCols = headerEl.querySelectorAll('div');
+                            var h0 = headerCols[0].textContent.trim();
+                            var h1 = headerCols[1].textContent.trim();
+                            var h2 = headerCols[2].textContent.trim();
+                            var h3 = headerCols[3].textContent.trim();
+
+                            // Extract all row data as plain text
+                            var rows = document.querySelectorAll('.row');
+                            var rowsHtml = '';
+                            rows.forEach(function(row) {
+                                var name = row.querySelector('.col-name').textContent.trim();
+                                var numbers = row.querySelector('.col-numbers').textContent.trim();
+                                var addressEl = row.querySelector('.col-address');
+                                var addressHtml = addressEl.innerHTML;
+                                // Strip all <font> and <span> tags but keep <strong>, <br>, <small>
+                                addressHtml = addressHtml.replace(/<font[^>]*>/gi, '').replace(/<\\/font>/gi, '');
+                                addressHtml = addressHtml.replace(/<span[^>]*>/gi, '').replace(/<\\/span>/gi, '');
+                                var tiffin = row.querySelector('.col-tiffin').textContent.trim();
+                                
+                                rowsHtml += '<div class="row">' +
+                                    '<div class="col-name"><strong>' + name + '</strong></div>' +
+                                    '<div class="col-numbers">' + numbers + '</div>' +
+                                    '<div class="col-address">' + addressHtml + '</div>' +
+                                    '<div class="col-tiffin">' + tiffin + '</div>' +
+                                '</div>';
+                            });
+
+                            var title = document.querySelector('h1').textContent.trim();
+                            var dateStr = document.querySelector('.date').textContent.trim();
+
+                            var cleanHtml = '<!DOCTYPE html><html><head>' +
+                                '<style>' +
+                                'body { font-family: sans-serif; padding: 20px; }' +
+                                'h1 { font-size: 20px; text-align: center; }' +
+                                '.date { text-align: right; font-size: 12px; color: #666; }' +
+                                '.row-header { display: flex; background: #f2f2f2; font-weight: bold; border: 1px solid #000; margin-top: 20px; }' +
+                                '.row { position: relative; overflow: hidden; border-left: 1px solid #000; border-right: 1px solid #000; border-bottom: 1px solid #000; break-inside: avoid; page-break-inside: avoid; }' +
+                                '.col-name { float: left; width: 20%; padding: 10px 8px; border-right: 1px solid #000; box-sizing: border-box; font-size: 14px; }' +
+                                '.col-numbers { float: left; width: 20%; padding: 10px 8px; border-right: 1px solid #000; box-sizing: border-box; font-size: 14px; font-family: monospace; }' +
+                                '.col-address { float: left; width: 50%; padding: 10px 8px; border-right: 1px solid #000; box-sizing: border-box; font-size: 14px; }' +
+                                '.col-tiffin { float: left; width: 10%; padding: 10px 8px; text-align: center; box-sizing: border-box; font-size: 18px; font-weight: 800; }' +
+                                '@media print { @page { margin: 1cm; } .row { position: relative; overflow: hidden; break-inside: avoid !important; page-break-inside: avoid !important; } }' +
+                                '</style></head><body>' +
+                                '<div class="date">' + dateStr + '</div>' +
+                                '<h1>' + title + '</h1>' +
+                                '<div class="row-header">' +
+                                    '<div class="col-name">' + h0 + '</div>' +
+                                    '<div class="col-numbers">' + h1 + '</div>' +
+                                    '<div class="col-address">' + h2 + '</div>' +
+                                    '<div class="col-tiffin">' + h3 + '</div>' +
+                                '</div>' +
+                                rowsHtml +
+                                '</body></html>';
+
+                            var printWin = window.open('', '_blank');
+                            printWin.document.write(cleanHtml);
+                            printWin.document.close();
+                            setTimeout(function() { printWin.print(); }, 300);
+                        }
+                    </script>
+                </head>
+                <body>
+                    <div id="google_translate_element" style="display:none"></div>
+                    <div class="date">${labels.printedOn}: ${new Date().toLocaleString()}</div>
+                    <h1>${labels.bookingsList} - ${data.displayLabel || ""}</h1>
+                    
+                    <!-- Header -->
+                    <div class="row-header">
+                        <div class="col-name">${headers[0]}</div>
+                        <div class="col-numbers">${headers[1]}</div>
+                        <div class="col-address">${headers[2]}</div>
+                        <div class="col-tiffin">${headers[3]}</div>
+                    </div>
+                    
+                    <!-- Data rows -->
+                    ${bookingsToPrint.map(b => `
+                        <div class="row">
+                            <div class="col-name"><strong>${b.user.name}</strong></div>
+                            <div class="col-numbers notranslate">${[b.user.phone, b.user.alternatePhone].filter(Boolean).join(", ")}</div>
+                            <div class="col-address">
+                                <strong>${b.user.area}</strong><br/>
+                                ${b.user.address}
+                                ${b.user.landmark ? `<br/><small>${labels.near}: ${b.user.landmark}</small>` : ""}
+                            </div>
+                            <div class="col-tiffin notranslate" style="font-size: 18px; font-weight: 800;">
+                                ${b.todayTiffinCount}
+                            </div>
+                        </div>
+                    `).join("")}
+                    
+                    <div class="print-footer">
+                        <div style="margin-bottom: 15px; font-weight: bold; color: #666;">
+                            Scroll down to check all pages are translated, then click Print
+                        </div>
+                        <button onclick="cleanAndPrint()" class="print-btn">Print PDF / Save List</button>
+                    </div>
+                    <script>
+                        // Load Google Translate after page content is ready
+                        setTimeout(function() {
+                            var s = document.createElement('script');
+                            s.src = '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+                            document.body.appendChild(s);
+                        }, 2000);
+                    </script>
+                </body>
+                </html>
+            `;
+
+            printWindow.document.write(html);
+            printWindow.document.close();
+        } catch (error) {
+            console.error("Print error:", error);
+            toast.error("Failed to generate print list");
+        }
+    };
+
     const [allAreas, setAllAreas] = useState<string[]>([]);
     useEffect(() => {
         const fetchAllAreas = async () => {
@@ -189,12 +428,20 @@ export function BookingsPanel({ deliveryLabel, onStatsUpdate }: BookingsPanelPro
                         <h2 className="text-xl font-black">Bookings</h2>
                         <p className="text-xs text-zinc-500">{deliveryLabel}</p>
                     </div>
-                    <button
-                        onClick={() => setShowAddModal(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-black font-bold rounded-xl text-sm"
-                    >
-                        <Plus className="h-4 w-4" /> Add
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handlePrint}
+                            className="flex items-center gap-2 px-4 py-2 bg-zinc-800 text-zinc-300 font-bold rounded-xl text-sm hover:bg-zinc-700 transition-colors"
+                        >
+                            <Printer className="h-4 w-4" /> Print
+                        </button>
+                        <button
+                            onClick={() => setShowAddModal(true)}
+                            className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-black font-bold rounded-xl text-sm"
+                        >
+                            <Plus className="h-4 w-4" /> Add
+                        </button>
+                    </div>
                 </div>
 
                 {/* Search & Filter */}
@@ -449,9 +696,9 @@ function BookingCard({
                     <div className="flex items-start gap-2 px-2 py-1.5 rounded-lg bg-zinc-950/40 border border-zinc-800/30">
                         <MapPin className="h-3 w-3 text-emerald-500/70 mt-0.5 flex-shrink-0" />
                         <div className="min-w-0">
-                            <p className="text-[11px] text-zinc-400 leading-tight font-medium line-clamp-2 break-all">{booking.user.address}</p>
+                            <p className="text-[13px] text-zinc-400 leading-tight font-medium line-clamp-3 break-words">{booking.user.address}</p>
                             {booking.user.landmark && (
-                                <p className="text-[9px] text-zinc-600 mt-0.5 font-bold uppercase">Near: {booking.user.landmark}</p>
+                                <p className="text-[11px] text-zinc-600 mt-1 font-bold uppercase tracking-tight">Near: {booking.user.landmark}</p>
                             )}
                         </div>
                     </div>

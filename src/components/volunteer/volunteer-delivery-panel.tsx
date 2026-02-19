@@ -411,11 +411,11 @@ function DeliveryCard({
                             <p className="text-[11px] text-zinc-500 font-bold uppercase truncate tracking-tight">{delivery.user.area}</p>
                         </div>
 
-                        <p className={`text-xs leading-tight mb-1 line-clamp-2 break-words ${delivery.isDelivered ? "text-zinc-600" : "text-zinc-400 font-medium"}`}>
+                        <p className={`text-sm leading-tight mb-1.5 line-clamp-3 break-words ${delivery.isDelivered ? "text-zinc-600" : "text-zinc-400 font-medium"}`}>
                             {delivery.user.address}
                         </p>
                         {delivery.user.landmark && (
-                            <p className={`text-[10px] uppercase font-bold mb-2 ${delivery.isDelivered ? "text-zinc-700" : "text-zinc-600"}`}>
+                            <p className={`text-[12px] uppercase font-bold tracking-tight mb-2 ${delivery.isDelivered ? "text-zinc-700" : "text-zinc-600"}`}>
                                 Near: {delivery.user.landmark}
                             </p>
                         )}
