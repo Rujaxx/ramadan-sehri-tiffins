@@ -22,7 +22,8 @@ export async function GET(req: Request) {
         const area = searchParams.get("area");
         const query = searchParams.get("query") || "";
         const status = searchParams.get("status") || "ACTIVE";
-        const limit = parseInt(searchParams.get("limit") || "20");
+        const isExport = searchParams.get("export") === "true";
+        const limit = isExport ? 5000 : parseInt(searchParams.get("limit") || "20");
         const cursor = searchParams.get("cursor");
 
         // Calculate target delivery date
